@@ -7,9 +7,9 @@ import ru.y_lab.model.Resource;
 import ru.y_lab.repo.ResourceRepository;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.UserService;
+import ru.y_lab.util.InputReader;
 
 import java.util.List;
-import java.util.Scanner;
 import java.util.UUID;
 
 /**
@@ -18,23 +18,42 @@ import java.util.UUID;
  */
 public class ResourceServiceImpl implements ResourceService {
 
-    private static final Scanner scanner = new Scanner(System.in);
-    private static final ResourceRepository resourceRepository = new ResourceRepository();
+    private final InputReader inputReader;
+    private final ResourceRepository resourceRepository;
     private final UserService userService;
 
-    public ResourceServiceImpl(UserService userService) {
+    /**
+     * Constructs a ResourceServiceImpl object with the specified dependencies.
+     * @param inputReader the input reader used for reading user input
+     * @param resourceRepository the repository managing resources
+     * @param userService the service providing user-related operations
+     */
+    public ResourceServiceImpl(InputReader inputReader, ResourceRepository resourceRepository, UserService userService) {
         this.userService = userService;
+        this.inputReader = inputReader;
+        this.resourceRepository = resourceRepository;
     }
 
+    /**
+     * Retrieves a resource by its unique identifier.
+     * @param resourceId the ID of the resource to retrieve
+     * @return the resource with the specified ID
+     * @throws ResourceNotFoundException if the resource with the given ID is not found
+     */
     @Override
-    public Resource getResourceById(String ig) throws ResourceNotFoundException {
-        Resource resource = resourceRepository.getResourceById(ig);
+    public Resource getResourceById(String resourceId) throws ResourceNotFoundException {
+        Resource resource = resourceRepository.getResourceById(resourceId);
         if (resource == null) {
             throw new ResourceNotFoundException("\nResource not found.");
         }
         return resource;
     }
 
+    /**
+     * Manages resources including CRUD operations.
+     * @throws ResourceNotFoundException if a resource is not found
+     * @throws UserNotFoundException if the user is not found
+     */
     @Override
     public void manageResources() throws ResourceNotFoundException, UserNotFoundException {
         if (userService.getCurrentUser() == null) {
@@ -68,6 +87,10 @@ public class ResourceServiceImpl implements ResourceService {
         }
     }
 
+    /**
+     * Displays a list of available resources.
+     * @throws UserNotFoundException if the user is not found
+     */
     @Override
     public void viewResources() throws UserNotFoundException {
         List<Resource> resources = resourceRepository.getAllResources();
@@ -86,6 +109,9 @@ public class ResourceServiceImpl implements ResourceService {
         }
     }
 
+    /**
+     * Displays the menu for managing resources.
+     */
     private void showResourceMenu() {
         String currentUserName = userService.getCurrentUser().getUsername();
         System.out.println("\n--- Manage Resources ---\n");
@@ -98,12 +124,14 @@ public class ResourceServiceImpl implements ResourceService {
         System.out.print("Enter your choice: ");
     }
 
-
-    private void addResource() {
+    /**
+     * Adds a new resource based on user input.
+     */
+    public void addResource() {
         System.out.print("Enter resource name: ");
-        String name = scanner.nextLine();
+        String name = inputReader.readLine();
         System.out.print("Enter resource type (Workspace/Conference Room): ");
-        String type = scanner.nextLine();
+        String type = inputReader.readLine();
 
         Resource resource = new Resource(UUID.randomUUID().toString(), userService.getCurrentUser().getId(), name, type);
         try {
@@ -114,11 +142,15 @@ public class ResourceServiceImpl implements ResourceService {
         }
     }
 
-    private void updateResource() throws ResourceNotFoundException {
+    /**
+     * Updates an existing resource based on user input.
+     * @throws ResourceNotFoundException if the resource to update is not found
+     */
+    public void updateResource() throws ResourceNotFoundException {
         System.out.print("Enter resource ID: ");
-        String bookingId = scanner.nextLine();
+        String resourceId = inputReader.readLine();
 
-        Resource resource = resourceRepository.getResourceById(bookingId);
+        Resource resource = resourceRepository.getResourceById(resourceId);
         if (resource == null) {
             System.out.println("Resource not found.");
             return;
@@ -130,20 +162,23 @@ public class ResourceServiceImpl implements ResourceService {
         }
 
         System.out.print("Enter new resource name: ");
-        String newName = scanner.nextLine();
+        String newName = inputReader.readLine();
         System.out.print("Enter new resource type: ");
-        String newDescription = scanner.nextLine();
+        String newType = inputReader.readLine();
 
         resource.setName(newName);
-        resource.setType(newDescription);
+        resource.setType(newType);
 
         resourceRepository.updateResource(resource);
         System.out.println("Resource updated successfully!");
     }
 
-    private void deleteResources() {
+    /**
+     * Deletes a resource based on user input.
+     */
+    public void deleteResources() {
         System.out.print("Enter resource ID: ");
-        String resourceId = scanner.nextLine();
+        String resourceId = inputReader.readLine();
 
         try {
             Resource resource = resourceRepository.getResourceById(resourceId);
@@ -163,5 +198,4 @@ public class ResourceServiceImpl implements ResourceService {
             System.out.println("Resource not found: " + e.getMessage());
         }
     }
-
 }

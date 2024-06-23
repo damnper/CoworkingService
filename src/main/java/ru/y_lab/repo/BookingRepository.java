@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * The BookingRepository class provides methods to manage bookings.
  * It stores booking data in a HashMap and supports CRUD operations.
@@ -28,7 +27,8 @@ public class BookingRepository {
     /**
      * Retrieves a booking by its ID.
      * @param id the ID of the booking
-     * @return the booking with the specified ID, or null if not found
+     * @return the booking with the specified ID, or throws BookingNotFoundException if not found
+     * @throws BookingNotFoundException if the booking with the specified ID is not found
      */
     public Booking getBookingById(String id) {
         Booking booking = bookings.get(id);
@@ -41,6 +41,7 @@ public class BookingRepository {
     /**
      * Updates an existing booking in the repository.
      * @param booking the booking with updated information
+     * @throws BookingNotFoundException if the booking with the specified ID is not found
      */
     public void updateBooking(Booking booking) {
         if (!bookings.containsKey(booking.getId())) {
@@ -52,6 +53,7 @@ public class BookingRepository {
     /**
      * Deletes a booking from the repository by its ID.
      * @param id the ID of the booking to be deleted
+     * @throws BookingNotFoundException if the booking with the specified ID is not found
      */
     public void deleteBooking(String id) {
         if (bookings.remove(id) == null) {
@@ -97,3 +99,4 @@ public class BookingRepository {
         return result;
     }
 }
+

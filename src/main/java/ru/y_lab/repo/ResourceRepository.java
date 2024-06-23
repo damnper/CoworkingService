@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * The ResourceRepository class provides methods to manage resources.
  * It stores resource data in a HashMap and supports CRUD operations.
@@ -19,6 +18,7 @@ public class ResourceRepository {
     /**
      * Adds a new resource to the repository.
      * @param resource the resource to be added
+     * @throws ResourceNotFoundException if a resource with the same ID already exists
      */
     public void addResource(Resource resource) throws ResourceNotFoundException {
         if (resources.containsKey(resource.getId())) {
@@ -30,7 +30,8 @@ public class ResourceRepository {
     /**
      * Retrieves a resource by its ID.
      * @param id the ID of the resource
-     * @return the resource with the specified ID, or null if not found
+     * @return the resource with the specified ID
+     * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
     public Resource getResourceById(String id) throws ResourceNotFoundException {
         Resource resource = resources.get(id);
@@ -43,6 +44,7 @@ public class ResourceRepository {
     /**
      * Updates an existing resource in the repository.
      * @param resource the resource with updated information
+     * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
     public void updateResource(Resource resource) throws ResourceNotFoundException {
         if (!resources.containsKey(resource.getId())) {
@@ -54,6 +56,7 @@ public class ResourceRepository {
     /**
      * Deletes a resource from the repository by its ID.
      * @param id the ID of the resource to be deleted
+     * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
     public void deleteResource(String id) throws ResourceNotFoundException {
         if (resources.remove(id) == null) {
@@ -69,3 +72,4 @@ public class ResourceRepository {
         return new ArrayList<>(resources.values());
     }
 }
+

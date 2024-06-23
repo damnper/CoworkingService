@@ -1,24 +1,23 @@
 package ru.y_lab.service.impl;
 
-import ru.y_lab.exception.BookingConflictException;
-import ru.y_lab.exception.BookingNotFoundException;
-import ru.y_lab.exception.ResourceNotFoundException;
-import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.exception.*;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.BookingRepository;
 import ru.y_lab.service.BookingService;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.UserService;
+import ru.y_lab.util.InputReader;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static ru.y_lab.CoworkingServiceApp.getUserChoice;
 
 /**
  * The BookingServiceImpl class provides an implementation of the BookingService interface.
@@ -26,21 +25,37 @@ import static ru.y_lab.CoworkingServiceApp.getUserChoice;
  */
 public class BookingServiceImpl implements BookingService {
 
-    private static final Scanner scanner = new Scanner(System.in);
-    private static final BookingRepository bookingRepository = new BookingRepository();
+    private final InputReader inputReader;
+    private final BookingRepository bookingRepository;
     private final UserService userService;
     private final ResourceService resourceService;
 
-    public BookingServiceImpl(UserService userService, ResourceService resourceService) {
+    /**
+     * Constructs a BookingServiceImpl instance with the necessary dependencies.
+     * @param inputReader the input reader for user interaction
+     * @param bookingRepository the repository managing bookings
+     * @param userService the service managing user-related operations
+     * @param resourceService the service managing resource-related operations
+     */
+    public BookingServiceImpl(InputReader inputReader, BookingRepository bookingRepository, UserService userService, ResourceService resourceService) {
+        this.inputReader = inputReader;
+        this.bookingRepository = bookingRepository;
         this.userService = userService;
         this.resourceService = resourceService;
     }
 
+    /**
+     * Manages bookings by interacting with users and resources.
+     * Handles addition, cancellation, updating, and viewing of bookings.
+     * @throws BookingConflictException if there is a conflict with an existing booking
+     * @throws ResourceNotFoundException if a required resource is not found
+     * @throws UserNotFoundException if the current user is not found
+     */
     @Override
     public void manageBookings() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
         if (userService.getCurrentUser() == null) {
             System.out.println("Access denied. Please log in to manage bookings.");
-            return;
+            throw new UserNotFoundException("Access denied. Please log in to manage bookings.");
         }
 
         boolean managingBookings = true;
@@ -73,6 +88,11 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * Filters bookings based on user input: by date, user ID, or resource ID.
+     * @throws ResourceNotFoundException if a required resource is not found
+     * @throws UserNotFoundException if the current user is not found
+     */
     @Override
     public void filterBookings() throws ResourceNotFoundException, UserNotFoundException {
         String currentUserName = userService.getCurrentUser().getUsername();
@@ -86,7 +106,7 @@ public class BookingServiceImpl implements BookingService {
         switch (choice) {
             case 1:
                 System.out.print("Enter date (YYYY-MM-DD): ");
-                String dateStr = scanner.nextLine();
+                String dateStr = inputReader.readLine();
                 try {
                     LocalDate date = LocalDate.parse(dateStr);
                     List<Booking> bookingsByDate = getBookingsByDate(date);
@@ -97,13 +117,13 @@ public class BookingServiceImpl implements BookingService {
                 break;
             case 2:
                 System.out.print("Enter user ID: ");
-                String userId = scanner.nextLine();
+                String userId = inputReader.readLine();
                 List<Booking> bookingsByUser = getBookingsByUser(userId);
                 printBookings(bookingsByUser);
                 break;
             case 3:
                 System.out.print("Enter resource ID: ");
-                String resourceId = scanner.nextLine();
+                String resourceId = inputReader.readLine();
                 List<Booking> bookingsByResource = getBookingsByResource(resourceId);
                 printBookings(bookingsByResource);
                 break;
@@ -112,24 +132,45 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * Retrieves all bookings from the repository that match the specified date.
+     * @param date the date to filter bookings by
+     * @return a list of bookings that occur on the specified date
+     */
     private List<Booking> getBookingsByDate(LocalDate date) {
         return bookingRepository.getAllBookings().stream()
                 .filter(booking -> booking.getStartTime().toLocalDate().equals(date))
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves all bookings from the repository made by a specific user.
+     * @param userId the ID of the user whose bookings are to be retrieved
+     * @return a list of bookings made by the user with the specified ID
+     */
     private List<Booking> getBookingsByUser(String userId) {
         return bookingRepository.getAllBookings().stream()
                 .filter(booking -> booking.getUserId().equals(userId))
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves all bookings from the repository for a specific resource.
+     * @param resourceId the ID of the resource whose bookings are to be retrieved
+     * @return a list of bookings made for the resource with the specified ID
+     */
     private List<Booking> getBookingsByResource(String resourceId) {
         return bookingRepository.getAllBookings().stream()
                 .filter(booking -> booking.getResourceId().equals(resourceId))
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Prints details of each booking in the provided list.
+     * @param bookings the list of bookings to print details for
+     * @throws ResourceNotFoundException if a resource referenced by a booking is not found
+     * @throws UserNotFoundException if a user referenced by a booking is not found
+     */
     private void printBookings(List<Booking> bookings) throws ResourceNotFoundException, UserNotFoundException {
         if (bookings.isEmpty()) {
             System.out.println("No bookings found.");
@@ -151,6 +192,12 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * Displays the menu for managing bookings based on the current user's permissions.
+     * Shows options for adding, canceling, viewing, and updating bookings,
+     * as well as viewing available slots and returning to the main menu.
+     * Requires the user to be logged in to display personalized information.
+     */
     private void showBookingMenu() {
         String currentUserName = userService.getCurrentUser().getUsername();
         System.out.println("\n--- Manage Bookings ---\n");
@@ -164,9 +211,13 @@ public class BookingServiceImpl implements BookingService {
         System.out.print("Enter your choice: ");
     }
 
-    private void addBooking() throws BookingConflictException {
+    /**
+     * Adds a new booking based on user input.
+     * @throws BookingConflictException if there is a conflict with an existing booking
+     */
+    public void addBooking() throws BookingConflictException {
         System.out.print("Enter resource ID: ");
-        String resourceId = scanner.nextLine();
+        String resourceId = inputReader.readLine();
 
         try {
             resourceService.getResourceById(resourceId);
@@ -197,9 +248,12 @@ public class BookingServiceImpl implements BookingService {
         System.out.println("\nBooking added successfully!");
     }
 
-    private void cancelBooking() {
+    /**
+     * Cancels a booking based on user input.
+     */
+    public void cancelBooking() {
         System.out.print("Enter booking ID: ");
-        String bookingId = scanner.nextLine();
+        String bookingId = inputReader.readLine();
 
         try {
             Booking booking = bookingRepository.getBookingById(bookingId);
@@ -220,7 +274,17 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private void viewUserBookings() throws ResourceNotFoundException, UserNotFoundException {
+    /**
+     * Views bookings of the currently logged-in user.
+     * Retrieves and displays all bookings associated with the user currently logged into the system.
+     * If no bookings are found for the user, a message indicating no bookings are available is printed.
+     * For each booking found, details including booking ID, booking owner (username),
+     * resource name, date, and time are printed to the console.
+     *
+     * @throws ResourceNotFoundException if a requested resource is not found
+     * @throws UserNotFoundException if a user referenced by a booking is not found
+     */
+    public void viewUserBookings() throws ResourceNotFoundException, UserNotFoundException {
         String currentUserId = userService.getCurrentUser().getId();
         List<Booking> userBookings = bookingRepository.getBookingsByUserId(currentUserId);
 
@@ -241,14 +305,18 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private void updateBooking() {
+    /**
+     * Updates an existing booking based on user input.
+     * @throws BookingConflictException if there is a conflict with an existing booking
+     */
+    public void updateBooking() throws BookingConflictException {
         System.out.print("Enter booking ID: ");
-        String bookingId = scanner.nextLine();
+        String bookingId = inputReader.readLine();
 
         Booking booking = bookingRepository.getBookingById(bookingId);
         if (booking == null) {
             System.out.println("Booking not found.");
-            return;
+            throw new BookingNotFoundException("Booking not found.");
         }
 
         if (!userService.getCurrentUser().getRole().equals("ADMIN") && !booking.getUserId().equals(userService.getCurrentUser().getId())) {
@@ -263,13 +331,16 @@ public class BookingServiceImpl implements BookingService {
         LocalDateTime startDateTime = dateTime[0];
         LocalDateTime endDateTime = dateTime[1];
 
-        // Check for booking conflicts
         List<Booking> existingBookings = bookingRepository.getBookingsByResourceId(booking.getResourceId());
         for (Booking existingBooking : existingBookings) {
             if (!existingBooking.getId().equals(bookingId) && existingBooking.getStartTime().isBefore(endDateTime) && startDateTime.isBefore(existingBooking.getEndTime())) {
                 System.out.println("\nBooking conflict: The resource is already booked during this time.");
-                return;
+                throw new BookingConflictException("Booking conflict: The resource is already booked during this time.");
             }
+        }
+
+        if (endDateTime.isBefore(startDateTime)) {
+            throw new InvalidBookingTimeException("End time must be after start time. Please try again.");
         }
 
         booking.setStartTime(startDateTime);
@@ -278,11 +349,14 @@ public class BookingServiceImpl implements BookingService {
         System.out.println("\nBooking updated successfully!");
     }
 
-    private void viewAvailableSlots() {
+    /**
+     * Views available slots for booking a resource on a specified date.
+     */
+    public void viewAvailableSlots() {
         System.out.print("Enter resource ID: ");
-        String resourceId = scanner.nextLine();
+        String resourceId = inputReader.readLine();
         System.out.print("Enter date (YYYY-MM-DD): ");
-        String dateStr = scanner.nextLine();
+        String dateStr = inputReader.readLine();
 
         LocalDate date;
         try {
@@ -312,6 +386,14 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * Displays available booking slots for a specified resource and date.
+     * Retrieves available slots using the {@link #getAvailableSlots(String, LocalDate)} method
+     * and prints them to the console.
+     *
+     * @param resourceId the ID of the resource for which available slots are displayed
+     * @param date the date for which available slots are displayed
+     */
     private void viewAvailableSlots(String resourceId, LocalDate date) {
         List<Booking> availableSlots = getAvailableSlots(resourceId, date);
         if (availableSlots.isEmpty()) {
@@ -333,6 +415,14 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * Retrieves available booking slots for a resource on a specified date.
+     * Filters existing bookings by date and calculates available time slots.
+     *
+     * @param resourceId the ID of the resource for which available slots are retrieved
+     * @param date the date for which available slots are retrieved
+     * @return a list of Booking objects representing available time slots
+     */
     private List<Booking> getAvailableSlots(String resourceId, LocalDate date) {
         List<Booking> bookings = bookingRepository.getBookingsByResourceId(resourceId);
         List<Booking> availableSlots = new ArrayList<>();
@@ -369,16 +459,27 @@ public class BookingServiceImpl implements BookingService {
         return availableSlots;
     }
 
-    private LocalDateTime[] getBookingDateTime(String resourceId, Boolean flagToViewAvailableSlots) {
+    /**
+     * Prompts the user to input date, start time, and end time for booking a resource.
+     * Validates input formats and checks if the booking time falls within working hours.
+     * Throws exceptions for invalid input formats or booking times.
+     *
+     * @param resourceId the ID of the resource to be booked (optional, used for viewing available slots)
+     * @param flagToViewAvailableSlots whether to display available slots before booking
+     * @return an array of LocalDateTime containing startDateTime and endDateTime for the booking
+     * @throws InvalidBookingDataException if the date format is invalid
+     * @throws InvalidBookingTimeException if the time format is invalid or booking time is outside working hours
+     */
+    public LocalDateTime[] getBookingDateTime(String resourceId, Boolean flagToViewAvailableSlots) {
         System.out.print("Enter date (YYYY-MM-DD): ");
-        String dateStr = scanner.nextLine();
+        String dateStr = inputReader.readLine();
 
         LocalDate date;
         try {
             date = LocalDate.parse(dateStr);
         } catch (DateTimeParseException e) {
             System.out.println("Invalid date format. Please use YYYY-MM-DD format.");
-            return null;
+            throw new InvalidBookingDataException("Invalid date format. Please use YYYY-MM-DD format.");
         }
 
         if (flagToViewAvailableSlots) {
@@ -388,23 +489,23 @@ public class BookingServiceImpl implements BookingService {
         System.out.println("\nBooking can be made only between 09:00 and 18:00.\n");
 
         System.out.print("Enter start time (HH:MM): ");
-        String startTimeStr = scanner.nextLine();
+        String startTimeStr = inputReader.readLine();
         LocalTime startTime;
         try {
             startTime = LocalTime.parse(startTimeStr);
         } catch (DateTimeParseException e) {
             System.out.println("Invalid time format. Please use HH:MM format.");
-            return null;
+            throw new InvalidBookingTimeException("Invalid time format. Please use HH:MM format.");
         }
 
         System.out.print("Enter end time (HH:MM): ");
-        String endTimeStr = scanner.nextLine();
+        String endTimeStr = inputReader.readLine();
         LocalTime endTime;
         try {
             endTime = LocalTime.parse(endTimeStr);
         } catch (DateTimeParseException e) {
             System.out.println("Invalid time format. Please use HH:MM format.");
-            return null;
+            throw new InvalidBookingTimeException("Invalid time format. Please use HH:MM format.");
         }
 
         LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
@@ -412,16 +513,30 @@ public class BookingServiceImpl implements BookingService {
 
         if (!startDateTime.isBefore(endDateTime)) {
             System.out.println("End time must be after start time. Please try again.");
-            return null;
+            throw new InvalidBookingTimeException("End time must be after start time. Please try again.");
         }
 
         LocalTime startOfDay = LocalTime.of(9, 0);
         LocalTime endOfDay = LocalTime.of(18, 0);
         if (startDateTime.toLocalTime().isBefore(startOfDay) || endDateTime.toLocalTime().isAfter(endOfDay)) {
             System.out.println("Booking must be within working hours (09:00 - 18:00). Please try again.");
-            return null;
+            throw new InvalidBookingTimeException("Invalid time format. Please use HH:MM format.");
         }
 
         return new LocalDateTime[] {startDateTime, endDateTime};
     }
+
+    /**
+     * Reads and retrieves the user's choice from input.
+     *
+     * @return the user's choice as an integer
+     */
+    public int getUserChoice() {
+        try {
+            return Integer.parseInt(inputReader.readLine());
+        } catch (NumberFormatException e) {
+            return -1; // Return -1 for any parsing errors
+        }
+    }
+
 }
