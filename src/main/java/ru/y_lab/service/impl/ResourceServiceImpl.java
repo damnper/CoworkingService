@@ -1,6 +1,5 @@
 package ru.y_lab.service.impl;
 
-import ru.y_lab.CoworkingServiceApp;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.Resource;
@@ -8,6 +7,7 @@ import ru.y_lab.repo.ResourceRepository;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.InputReader;
+import ru.y_lab.ui.MenuManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -64,7 +64,7 @@ public class ResourceServiceImpl implements ResourceService {
         boolean managingResources = true;
         while (managingResources) {
             showResourceMenu();
-            int choice = CoworkingServiceApp.getUserChoice();
+            int choice = MenuManager.getUserChoice();
             switch (choice) {
                 case 1:
                     addResource();
