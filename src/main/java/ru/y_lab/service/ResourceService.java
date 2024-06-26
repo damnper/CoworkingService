@@ -14,7 +14,7 @@ public interface ResourceService {
      * @throws ResourceNotFoundException if a resource is not found
      * @throws UserNotFoundException if the user is not found
      */
-    void manageResources() throws ResourceNotFoundException, UserNotFoundException;
+    void manageResources();
 
     /**
      * Displays a list of available resources.
