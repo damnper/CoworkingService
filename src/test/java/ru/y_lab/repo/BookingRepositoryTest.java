@@ -1,6 +1,7 @@
 package ru.y_lab.repo;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.model.Booking;
@@ -13,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for the BookingRepository class.
  */
+@DisplayName("Unit Tests for BookingRepositoryTest")
 public class BookingRepositoryTest {
 
     private BookingRepository bookingRepository;

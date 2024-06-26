@@ -2,6 +2,7 @@ package ru.y_lab;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.ResourceNotFoundException;
@@ -16,12 +17,11 @@ import java.io.PrintStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static ru.y_lab.CoworkingServiceApp.showAdminMenu;
-import static ru.y_lab.CoworkingServiceApp.showMainMenu;
 
 /**
  * Unit tests for {@link CoworkingServiceApp}.
  */
+@DisplayName("Unit Tests for CoworkingServiceApp")
 public class CoworkingServiceAppTest {
 
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();

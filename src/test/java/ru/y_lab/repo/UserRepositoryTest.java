@@ -1,6 +1,7 @@
 package ru.y_lab.repo;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for the UserRepository class.
  */
+@DisplayName("Unit Tests for UserRepositoryTest")
 public class UserRepositoryTest {
     private UserRepository userRepository;
 

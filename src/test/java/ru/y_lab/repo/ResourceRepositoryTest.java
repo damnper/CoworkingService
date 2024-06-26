@@ -1,6 +1,7 @@
 package ru.y_lab.repo;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.model.Resource;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for the ResourceRepository class.
  */
+@DisplayName("Unit Tests for ResourceRepositoryTest")
 public class ResourceRepositoryTest {
 
     private ResourceRepository resourceRepository;

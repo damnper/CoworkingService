@@ -1,6 +1,7 @@
 package ru.y_lab.service;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link UserServiceImpl}.
  */
+@DisplayName("Unit Tests for UserServiceImplTest")
 public class UserServiceImplTest {
 
     @Mock

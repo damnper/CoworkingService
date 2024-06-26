@@ -1,6 +1,7 @@
 package ru.y_lab.service;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for the BookingServiceImpl class.
  */
+@DisplayName("Unit Tests for BookingServiceImplTest")
 public class BookingServiceImplTest {
     @Mock
     private InputReader inputReader;
