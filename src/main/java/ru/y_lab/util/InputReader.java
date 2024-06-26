@@ -10,4 +10,13 @@ public interface InputReader {
      * @return the line of input read
      */
     String readLine();
+
+    /**
+     * Reads and retrieves the user's choice from input.
+     *
+     * @return the user's choice as an integer
+     */
+    int getUserChoice();
+
+    void close();
 }

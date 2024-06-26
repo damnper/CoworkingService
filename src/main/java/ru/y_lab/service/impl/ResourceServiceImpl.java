@@ -1,15 +1,18 @@
 package ru.y_lab.service.impl;
 
+import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.Resource;
 import ru.y_lab.repo.ResourceRepository;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.UserService;
+import ru.y_lab.ui.ResourceUI;
 import ru.y_lab.util.InputReader;
-import ru.y_lab.ui.MenuManager;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -21,6 +24,15 @@ public class ResourceServiceImpl implements ResourceService {
     private final InputReader inputReader;
     private final ResourceRepository resourceRepository;
     private final UserService userService;
+    private final ResourceUI resourceUI;
+    private boolean running = true;
+
+    private final Map<Integer, CheckedRunnable> resourceActions = new HashMap<>();
+
+    @FunctionalInterface
+    interface CheckedRunnable {
+        void run() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException;
+    }
 
     /**
      * Constructs a ResourceServiceImpl object with the specified dependencies.
@@ -28,10 +40,38 @@ public class ResourceServiceImpl implements ResourceService {
      * @param resourceRepository the repository managing resources
      * @param userService the service providing user-related operations
      */
-    public ResourceServiceImpl(InputReader inputReader, ResourceRepository resourceRepository, UserService userService) {
+    public ResourceServiceImpl(InputReader inputReader, ResourceRepository resourceRepository, UserService userService, ResourceUI resourceUI) {
         this.userService = userService;
         this.inputReader = inputReader;
         this.resourceRepository = resourceRepository;
+        this.resourceUI = resourceUI;
+
+        resourceActions.put(1, this::addResource);
+        resourceActions.put(2, this::viewResources);
+        resourceActions.put(3, this::updateResource);
+        resourceActions.put(4, this::deleteResources);
+        resourceActions.put(0, this::exitApplication);
+    }
+
+    /**
+     * Manages resources including CRUD operations.
+     */
+    @Override
+    public void manageResources() {
+        if (userService.getCurrentUser() == null) {
+            System.out.println("\nAccess denied. Please log in to manage resources.");
+            return;
+        }
+
+        while (running) {
+            resourceUI.showResourceMenu(userService);
+            int choice = inputReader.getUserChoice();
+            try {
+                running = executeChoice(choice);
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -47,44 +87,6 @@ public class ResourceServiceImpl implements ResourceService {
             throw new ResourceNotFoundException("\nResource not found.");
         }
         return resource;
-    }
-
-    /**
-     * Manages resources including CRUD operations.
-     * @throws ResourceNotFoundException if a resource is not found
-     * @throws UserNotFoundException if the user is not found
-     */
-    @Override
-    public void manageResources() throws ResourceNotFoundException, UserNotFoundException {
-        if (userService.getCurrentUser() == null) {
-            System.out.println("\nAccess denied. Please log in to manage resources.");
-            return;
-        }
-
-        boolean managingResources = true;
-        while (managingResources) {
-            showResourceMenu();
-            int choice = MenuManager.getUserChoice();
-            switch (choice) {
-                case 1:
-                    addResource();
-                    break;
-                case 2:
-                    viewResources();
-                    break;
-                case 3:
-                    updateResource();
-                    break;
-                case 4:
-                    deleteResources();
-                    break;
-                case 0:
-                    managingResources = false;
-                    break;
-                default:
-                    System.out.println("\nInvalid choice. Please try again.");
-            }
-        }
     }
 
     /**
@@ -107,21 +109,6 @@ public class ResourceServiceImpl implements ResourceService {
                 System.out.println("\n----------------------------");
             }
         }
-    }
-
-    /**
-     * Displays the menu for managing resources.
-     */
-    private void showResourceMenu() {
-        String currentUserName = userService.getCurrentUser().getUsername();
-        System.out.println("\n--- Manage Resources ---\n");
-        System.out.println("Logged in as: " + currentUserName + "\n");
-        System.out.println("1. Add Resource");
-        System.out.println("2. View Resources");
-        System.out.println("3. Update Resource");
-        System.out.println("4. Delete Resources");
-        System.out.println("0. Back to Main Menu");
-        System.out.print("Enter your choice: ");
     }
 
     /**
@@ -197,5 +184,40 @@ public class ResourceServiceImpl implements ResourceService {
         } catch (ResourceNotFoundException e) {
             System.out.println("Resource not found: " + e.getMessage());
         }
+    }
+
+    /**
+     * Executes the chosen action based on the user's input.
+     *
+     * @param choice the integer corresponding to the user's chosen action
+     * @return true if the application should continue running, false if it should exit
+     */
+    private boolean executeChoice(int choice) throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
+        CheckedRunnable action = getActionsMap().getOrDefault(choice, this::invalidChoice);
+        action.run();
+        return running;
+    }
+
+    /**
+     * Determines the appropriate actions map based on the user's role.
+     *
+     * @return the map of actions for the current user
+     */
+    private Map<Integer, CheckedRunnable> getActionsMap() {
+        return resourceActions;
+    }
+
+    /**
+     * Sets running to false to exit the application.
+     */
+    private void exitApplication() {
+        running = false;
+    }
+
+    /**
+     * Displays an invalid choice message.
+     */
+    private void invalidChoice() {
+        System.out.println("Invalid choice. Please try again.");
     }
 }

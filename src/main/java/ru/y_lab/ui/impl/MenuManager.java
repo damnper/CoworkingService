@@ -1,15 +1,12 @@
-package ru.y_lab.ui;
+package ru.y_lab.ui.impl;
 
 import ru.y_lab.service.UserService;
-import ru.y_lab.util.ConsoleInputReader;
-import ru.y_lab.util.InputReader;
 
 /**
  * The MenuManager class handles displaying the menu and getting user input.
  */
 public class MenuManager {
     private final UserService userService;
-    private static final InputReader inputReader = new ConsoleInputReader();
 
     public MenuManager(UserService userService) {
         this.userService = userService;
@@ -56,18 +53,5 @@ public class MenuManager {
         System.out.println("6. Filter Bookings");
         System.out.println("0. Exit");
         System.out.print("Enter your choice: ");
-    }
-
-    /**
-     * Reads the user's choice from the console input.
-     *
-     * @return the integer representing the user's choice
-     */
-    public static int getUserChoice() {
-        try {
-            return Integer.parseInt(inputReader.readLine());
-        } catch (NumberFormatException e) {
-            return -1;
-        }
     }
 }

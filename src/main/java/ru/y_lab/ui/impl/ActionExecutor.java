@@ -1,4 +1,4 @@
-package ru.y_lab.ui;
+package ru.y_lab.ui.impl;
 
 import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.ResourceNotFoundException;
@@ -15,8 +15,6 @@ import java.util.Map;
  */
 public class ActionExecutor {
     private final UserService userService;
-    private final ResourceService resourceService;
-    private final BookingService bookingService;
     private boolean running = true;
 
     @FunctionalInterface
@@ -29,8 +27,6 @@ public class ActionExecutor {
 
     public ActionExecutor(UserService userService, ResourceService resourceService, BookingService bookingService) {
         this.userService = userService;
-        this.resourceService = resourceService;
-        this.bookingService = bookingService;
 
         userActions.put(1, userService::registerUser);
         userActions.put(2, userService::loginUser);
@@ -57,14 +53,31 @@ public class ActionExecutor {
      * @throws UserNotFoundException if a user is not found
      */
     public boolean executeChoice(int choice) throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
-        CheckedRunnable action;
-        if (userService.getCurrentUser() != null && userService.getCurrentUser().getRole().equals("ADMIN")) {
-            action = adminActions.getOrDefault(choice, this::invalidChoice);
-        } else {
-            action = userActions.getOrDefault(choice, this::invalidChoice);
-        }
+        CheckedRunnable action = getActionsMap().getOrDefault(choice, this::invalidChoice);
         action.run();
         return running;
+    }
+
+    /**
+     * Determines the appropriate actions map based on the user's role.
+     *
+     * @return the map of actions for the current user
+     */
+    private Map<Integer, CheckedRunnable> getActionsMap() {
+        if (isAdmin()) {
+            return adminActions;
+        } else {
+            return userActions;
+        }
+    }
+
+    /**
+     * Checks if the current user is an admin.
+     *
+     * @return true if the current user is an admin, false otherwise
+     */
+    private boolean isAdmin() {
+        return userService.getCurrentUser() != null && "ADMIN".equals(userService.getCurrentUser().getRole());
     }
 
     /**
