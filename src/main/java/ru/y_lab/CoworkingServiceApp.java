@@ -1,5 +1,6 @@
 package ru.y_lab;
 
+import ru.y_lab.config.LiquibaseInitializer;
 import ru.y_lab.repo.BookingRepository;
 import ru.y_lab.repo.ResourceRepository;
 import ru.y_lab.repo.UserRepository;
@@ -24,7 +25,7 @@ import ru.y_lab.util.InputReader;
 public class CoworkingServiceApp {
     private static final InputReader inputReader = new ConsoleInputReader();
     private static final UserRepository userRepository = new UserRepository();
-    private static final UserService userService = new UserServiceImpl(inputReader, userRepository, true);
+    private static final UserService userService = new UserServiceImpl(inputReader, userRepository);
     private static final ResourceUI resourceUI = new ResourceConsoleUI();
     private static final ResourceRepository resourceRepository = new ResourceRepository();
     private static final ResourceService resourceService = new ResourceServiceImpl(inputReader, resourceRepository, userService, resourceUI);
@@ -41,6 +42,8 @@ public class CoworkingServiceApp {
     public static void main(String[] args) {
         MenuManager menuManager = new MenuManager(userService);
         ActionExecutor actionExecutor = new ActionExecutor(userService, resourceService, bookingService);
+
+        LiquibaseInitializer.initialize();
 
         while (running) {
             menuManager.showMenu();

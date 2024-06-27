@@ -1,0 +1,15 @@
+application.name: CoworkingService
+
+datasource:
+    url: jdbc:postgresql://localhost:5436/coworkingdb
+    username: daler
+    password: daler123
+    driver-class-name: org.postgresql.Driver
+
+liquibase:
+    change-log: classpath:db/changelog.xml
+    default-schema: liquibase
+    liquibase-schema: liquibase
+    enabled: true
+    drop-first: true
+    log-level: warning

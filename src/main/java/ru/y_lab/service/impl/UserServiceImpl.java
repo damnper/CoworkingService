@@ -26,15 +26,11 @@ public class UserServiceImpl implements UserService {
      * Constructs a UserServiceImpl object with the specified dependencies.
      * @param inputReader the input reader used for user interaction
      * @param userRepository the repository managing user data
-     * @param addAdmin flag indicating whether to add an admin user during initialization
      */
-    public UserServiceImpl(InputReader inputReader, UserRepository userRepository, boolean addAdmin) {
+    public UserServiceImpl(InputReader inputReader, UserRepository userRepository) {
         this.inputReader = inputReader;
         this.userRepository = userRepository;
         this.authUtil = new AuthenticationUtil(userRepository);
-        if (addAdmin) {
-            addAdminUser();
-        }
     }
 
     /**
@@ -107,15 +103,13 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void viewAllUsers() {
-        int i = 1;
         List<User> users = userRepository.getAllUsers();
         if (users.isEmpty()) {
             System.out.println("No users available.");
         } else {
             System.out.println("\n--- List of All Users ---");
             for (User user : users) {
-                System.out.println(i + ") " + user.getId() + " " + user.getUsername());
-                i++;
+                System.out.println(user.getId() + " " + user.getUsername());
             }
         }
     }
@@ -129,13 +123,5 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getUserById(String userId) throws UserNotFoundException {
         return userRepository.getUserById(userId);
-    }
-
-    /**
-     * Adds an admin user to the repository during initialization.
-     */
-    private void addAdminUser() {
-        User admin = new User(UUID.randomUUID().toString(),"Admin", "admin", "ADMIN");
-        userRepository.addUser(admin);
     }
 }

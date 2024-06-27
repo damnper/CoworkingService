@@ -4,14 +4,26 @@ package ru.y_lab.repo;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 
-import java.util.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 /**
  * The UserRepository class provides methods to manage users.
  * It stores user data in a HashMap and supports CRUD operations.
  */
 public class UserRepository {
 
-    private final Map<String, User> users = new HashMap<>();
+    private static final String URL = "jdbc:postgresql://localhost:5436/coworkingdb";
+    private static final String USER = "daler";
+    private static final String PASSWORD = "daler123";
+
+    public UserRepository() {
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Failed to load PostgreSQL driver", e);
+        }
+    }
 
     /**
      * Adds a new user to the repository.
@@ -19,7 +31,30 @@ public class UserRepository {
      * @return the user with the specified ID
      */
     public User addUser(User user) {
-        return users.put(user.getId(), user);
+        String sql = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, (?), (?), (?))";
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getPassword());
+            ps.setString(3, user.getRole());
+
+            int affectedRows = ps.executeUpdate();
+            if (affectedRows == 0) {
+                throw new SQLException("Creating user failed, no rows affected.");
+            }
+
+            try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    user.setId(String.valueOf(generatedKeys.getLong(1)));
+                    return user;
+                } else {
+                    throw new SQLException("Creating user failed, no ID obtained.");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while adding user", e);
+        }
     }
 
     /**
@@ -29,11 +64,21 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     public User getUserById(String id) throws UserNotFoundException {
-        User user = users.get(id);
-        if (user == null) {
-            throw new UserNotFoundException("User with ID " + id + " not found");
+        String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setLong(1, Long.parseLong(id));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapRowToUser(rs);
+                } else {
+                    throw new UserNotFoundException("User with ID " + id + " not found");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while retrieving user by ID", e);
         }
-        return user;
     }
 
     /**
@@ -43,15 +88,21 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified username is not found
      */
     public User getUserByUsername(String username) throws UserNotFoundException {
-        Optional<User> optionalUser = users.values().stream()
-                .filter(user -> user.getUsername().equals(username))
-                .findFirst();
+        String sql = "SELECT * FROM coworking_service.users WHERE username = ?";
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, username);
 
-        if (optionalUser.isEmpty()) {
-            throw new UserNotFoundException("User with username " + username + " not found");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapRowToUser(rs);
+                } else {
+                    throw new UserNotFoundException("User with username " + username + " not found");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while retrieving user by username", e);
         }
-
-        return optionalUser.get();
     }
 
     /**
@@ -60,10 +111,21 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     public void updateUser(User user) throws UserNotFoundException {
-        if (!users.containsKey(user.getId())) {
-            throw new UserNotFoundException("User with ID " + user.getId() + " not found");
+        String sql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getPassword());
+            ps.setString(3, user.getRole());
+            ps.setLong(4, Long.parseLong(user.getId()));
+
+            int rowsAffected = ps.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new UserNotFoundException("User with ID " + user.getId() + " not found");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while updating user", e);
         }
-        users.put(user.getId(), user);
     }
 
     /**
@@ -72,8 +134,17 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     public void deleteUser(String id) throws UserNotFoundException {
-        if (users.remove(id) == null) {
-            throw new UserNotFoundException("User with ID " + id + " not found");
+        String sql = "DELETE FROM coworking_service.users WHERE id = ?";
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setLong(1, Long.parseLong(id));
+
+            int rowsAffected = ps.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new UserNotFoundException("User with ID " + id + " not found");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while deleting user", e);
         }
     }
 
@@ -82,7 +153,28 @@ public class UserRepository {
      * @return a list of all users
      */
     public List<User> getAllUsers() {
-        return new ArrayList<>(users.values());
+        String sql = "SELECT * FROM coworking_service.users";
+        List<User> users = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                users.add(mapRowToUser(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while retrieving all users", e);
+        }
+        return users;
+    }
+
+    private User mapRowToUser(ResultSet rs) throws SQLException {
+        return User.builder()
+                .id(String.valueOf(rs.getLong("id")))
+                .username(rs.getString("username"))
+                .password(rs.getString("password"))
+                .role(rs.getString("role"))
+                .build();
     }
 }
 
