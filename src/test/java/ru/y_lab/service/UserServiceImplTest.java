@@ -14,7 +14,6 @@ import ru.y_lab.util.InputReader;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -42,7 +41,7 @@ public class UserServiceImplTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        userService = new UserServiceImpl(inputReader, userRepository, false);
+        userService = new UserServiceImpl(inputReader, userRepository, authUtil);
         userService.setCurrentUser(null);
     }
 
@@ -53,7 +52,7 @@ public class UserServiceImplTest {
     @Test
     public void testRegisterUser_Success() {
         when(inputReader.readLine()).thenReturn("validUsername", "validPassword@123");
-        User user = new User("123", "validUsername", "validPassword@123", "USER");
+        User user = new User(2L, "validUsername", "validPassword@123", "USER");
         when(userRepository.addUser(any(User.class))).thenReturn(user);
 
         User registeredUser = userService.registerUser();
@@ -73,11 +72,12 @@ public class UserServiceImplTest {
     @Test
     public void testRegisterUser_InvalidUsername() {
         when(inputReader.readLine())
-                .thenReturn("in")  // Invalid username
+                .thenReturn("in")
                 .thenReturn("validPassword@123");
 
-        userService.registerUser();
+        User registeredUser = userService.registerUser();
 
+        assertNull(registeredUser);
         verify(userRepository, never()).addUser(any(User.class));
     }
 
@@ -97,6 +97,21 @@ public class UserServiceImplTest {
     }
 
     /**
+     * Test case for {@link UserServiceImpl#registerUser()} when username is taken.
+     * Verifies that user registration fails if the username is already taken.
+     */
+    @Test
+    public void testRegisterUser_UsernameTaken() throws UserNotFoundException {
+        when(inputReader.readLine()).thenReturn("existingUsername", "validPassword@123");
+        when(userRepository.getUserByUsername("existingUsername")).thenReturn(new User(1L, "existingUsername", "somePassword", "USER"));
+
+        User registeredUser = userService.registerUser();
+
+        assertNull(registeredUser);
+        verify(userRepository, never()).addUser(any(User.class));
+    }
+
+    /**
      * Test case for {@link UserServiceImpl#loginUser()} when login is successful.
      * Validates that a user with correct credentials can successfully log in.
      *
@@ -106,7 +121,7 @@ public class UserServiceImplTest {
     public void testLoginUser_Success() throws UserNotFoundException {
         when(inputReader.readLine()).thenReturn("validUsername", "validPassword@123");
 
-        User user = new User("123", "validUsername", "validPassword@123", "USER");
+        User user = new User(2L, "validUsername", "validPassword@123", "USER");
 
         when(authUtil.authenticate("validUsername", "validPassword@123")).thenReturn(true);
         when(userRepository.getUserByUsername("validUsername")).thenReturn(user);
@@ -114,7 +129,7 @@ public class UserServiceImplTest {
         userService.loginUser();
 
         assertEquals(user, userService.getCurrentUser());
-        verify(userRepository, times(2)).getUserByUsername("validUsername");
+        verify(userRepository, times(1)).getUserByUsername("validUsername");
     }
 
     /**
@@ -132,7 +147,24 @@ public class UserServiceImplTest {
         userService.loginUser();
 
         assertNull(userService.getCurrentUser());
-        verify(userRepository, times(1)).getUserByUsername("validUsername");
+        verify(userRepository, never()).getUserByUsername("validUsername");
+    }
+
+    /**
+     * Test case for {@link UserServiceImpl#loginUser()} when user is not found.
+     * Verifies that login fails when the user does not exist.
+     *
+     * @throws UserNotFoundException if the user is not found
+     */
+    @Test
+    public void testLoginUser_UserNotFound() throws UserNotFoundException {
+        when(inputReader.readLine()).thenReturn("nonExistentUsername", "validPassword@123");
+
+        when(authUtil.authenticate("nonExistentUsername", "validPassword@123")).thenReturn(true);
+        when(userRepository.getUserByUsername("nonExistentUsername")).thenThrow(new UserNotFoundException("User not found"));
+
+        assertThrows(UserNotFoundException.class, () -> userService.loginUser());
+        assertNull(userService.getCurrentUser());
     }
 
     /**
@@ -141,7 +173,7 @@ public class UserServiceImplTest {
      */
     @Test
     public void testGetCurrentUser() {
-        User user = new User("123", "validUsername", "validPassword@123", "USER");
+        User user = new User(2L, "validUsername", "validPassword@123", "USER");
         userService.setCurrentUser(user);
 
         User currentUser = userService.getCurrentUser();
@@ -169,8 +201,8 @@ public class UserServiceImplTest {
     @Test
     public void testViewAllUsers_WithUsers() {
         List<User> users = new ArrayList<>();
-        users.add(new User(UUID.randomUUID().toString(), "user1", "password1", "USER"));
-        users.add(new User(UUID.randomUUID().toString(), "user2", "password2", "USER"));
+        users.add(new User(2L, "user1", "password1", "USER"));
+        users.add(new User(2L, "user2", "password2", "USER"));
         when(userRepository.getAllUsers()).thenReturn(users);
 
         userService.viewAllUsers();
@@ -179,20 +211,34 @@ public class UserServiceImplTest {
     }
 
     /**
-     * Test case for {@link UserServiceImpl#getUserById(String)}.
+     * Test case for {@link UserServiceImpl#getUserById(Long)} when the user is found.
      * Validates retrieval of a user by ID from the repository.
      *
      * @throws UserNotFoundException if the user is not found
      */
     @Test
-    public void testGetUserById() throws UserNotFoundException {
-        User user = new User("123", "validUsername", "validPassword@123", "USER");
-        when(userRepository.getUserById("123")).thenReturn(user);
+    public void testGetUserById_Found() throws UserNotFoundException {
+        User user = new User(2L, "validUsername", "validPassword@123", "USER");
+        when(userRepository.getUserById(2L)).thenReturn(user);
 
-        User foundUser = userService.getUserById("123");
+        User foundUser = userService.getUserById(2L);
 
         assertEquals(user, foundUser);
-        verify(userRepository, times(1)).getUserById("123");
+        verify(userRepository, times(1)).getUserById(2L);
+    }
+
+    /**
+     * Test case for {@link UserServiceImpl#getUserById(Long)} when the user is not found.
+     * Verifies that attempting to get a non-existent user throws {@link UserNotFoundException}.
+     *
+     * @throws UserNotFoundException if the user is not found
+     */
+    @Test
+    public void testGetUserById_NotFound() throws UserNotFoundException {
+        when(userRepository.getUserById(999L)).thenThrow(new UserNotFoundException("User not found"));
+
+        assertThrows(UserNotFoundException.class, () -> userService.getUserById(999L));
+        verify(userRepository, times(1)).getUserById(999L);
     }
 }
 

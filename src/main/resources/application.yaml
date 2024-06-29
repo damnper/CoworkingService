@@ -1,7 +1,7 @@
 application.name: CoworkingService
 
 datasource:
-    url: jdbc:postgresql://localhost:5436/coworkingdb
+    url: jdbc:postgresql://localhost:5437/coworkingdb
     username: daler
     password: daler123
     driver-class-name: org.postgresql.Driver

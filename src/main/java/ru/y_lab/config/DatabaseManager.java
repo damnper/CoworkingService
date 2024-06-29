@@ -8,7 +8,7 @@ import java.sql.SQLException;
 
 @Data
 public class DatabaseManager {
-    private static final DatabaseConfig dbConfig = DatabaseConfig.load();
+    private static DatabaseConfig dbConfig = DatabaseConfig.load();
 
     static {
         try {
@@ -20,5 +20,15 @@ public class DatabaseManager {
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword());
+    }
+
+    // Метод для установки кастомной конфигурации
+    public static void setConfig(DatabaseConfig config) {
+        dbConfig = config;
+        try {
+            Class.forName(dbConfig.getDriverClassName());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Failed to load PostgreSQL driver", e);
+        }
     }
 }

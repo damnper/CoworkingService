@@ -18,9 +18,11 @@ public class BookingRepository {
 
     /**
      * Adds a new booking to the repository.
+     *
      * @param booking the booking to be added
+     * @return Booking the new booking
      */
-    public void addBooking(Booking booking) {
+    public Booking addBooking(Booking booking) {
         String sql = "INSERT INTO coworking_service.bookings (id, user_id, resource_id, start_time, end_time) VALUES (DEFAULT, (?), (?), (?), (?))";
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -46,6 +48,7 @@ public class BookingRepository {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        return booking;
     }
 
     /**
@@ -199,4 +202,3 @@ public class BookingRepository {
                 .build();
     }
 }
-

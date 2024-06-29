@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class ActionExecutor {
     private final UserService userService;
-    private boolean running = true;
+    public boolean running = true;
 
     @FunctionalInterface
     interface CheckedRunnable {
@@ -90,7 +90,7 @@ public class ActionExecutor {
     /**
      * Displays an invalid choice message.
      */
-    private void invalidChoice() {
+    public void invalidChoice() {
         System.out.println("Invalid choice. Please try again.");
     }
 }

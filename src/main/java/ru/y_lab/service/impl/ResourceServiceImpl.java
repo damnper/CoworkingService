@@ -117,7 +117,7 @@ public class ResourceServiceImpl implements ResourceService {
      * If a conflict occurs, throws a ResourceConflictException.
      */
     @SneakyThrows
-    private void addResource() {
+    public void addResource() {
         System.out.print(CYAN + "Enter resource name: " + RESET);
         String name = inputReader.readLine();
         System.out.print(CYAN + "Enter resource type (Workspace/Conference Room): " + RESET);

@@ -49,9 +49,8 @@ public class ResourceRepository {
      * Retrieves a resource by its ID.
      * @param id the ID of the resource
      * @return the resource with the specified ID
-     * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
-    public Optional<Resource> getResourceById(Long id) throws ResourceNotFoundException {
+    public Optional<Resource> getResourceById(Long id) {
         String sql = "SELECT * FROM coworking_service.resources WHERE id = ?";
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {

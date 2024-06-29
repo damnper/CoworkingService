@@ -94,7 +94,6 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-
     /**
      * Filters bookings based on user input: by date, user ID, or resource ID.
      * Displays the filter menu and processes the user's choice.
@@ -342,7 +341,7 @@ public class BookingServiceImpl implements BookingService {
      * @throws InvalidBookingDataException if the date format is invalid
      * @throws InvalidBookingTimeException if the time format is invalid or booking time is outside working hours
      */
-    private LocalDateTime[] getBookingDateTime(Long resourceId, Boolean flagToViewAvailableSlots) {
+    public LocalDateTime[] getBookingDateTime(Long resourceId, Boolean flagToViewAvailableSlots) {
         LocalDate date = readDate();
 
         if (flagToViewAvailableSlots) {
