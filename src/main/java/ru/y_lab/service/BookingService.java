@@ -39,7 +39,7 @@ public interface BookingService {
      * @throws ResourceNotFoundException if a resource referenced by a booking is not found
      * @throws UserNotFoundException if the current user is not found
      */
-    void viewUserBookings() throws ResourceNotFoundException, UserNotFoundException;
+    void viewUserBookings() throws UserNotFoundException, ResourceNotFoundException;
 
     /**
      * Updates an existing booking based on user input.

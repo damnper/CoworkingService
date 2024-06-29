@@ -1,6 +1,7 @@
 package ru.y_lab.repo;
 
 
+import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 
@@ -13,18 +14,6 @@ import java.util.List;
  */
 public class UserRepository {
 
-    private static final String URL = "jdbc:postgresql://localhost:5436/coworkingdb";
-    private static final String USER = "daler";
-    private static final String PASSWORD = "daler123";
-
-    public UserRepository() {
-        try {
-            Class.forName("org.postgresql.Driver");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Failed to load PostgreSQL driver", e);
-        }
-    }
-
     /**
      * Adds a new user to the repository.
      * @param user the user to be added
@@ -32,7 +21,7 @@ public class UserRepository {
      */
     public User addUser(User user) {
         String sql = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, (?), (?), (?))";
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, user.getUsername());
@@ -46,7 +35,7 @@ public class UserRepository {
 
             try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
-                    user.setId(String.valueOf(generatedKeys.getLong(1)));
+                    user.setId(generatedKeys.getLong(1));
                     return user;
                 } else {
                     throw new SQLException("Creating user failed, no ID obtained.");
@@ -63,11 +52,11 @@ public class UserRepository {
      * @return the user with the specified ID
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public User getUserById(String id) throws UserNotFoundException {
+    public User getUserById(Long id) throws UserNotFoundException {
         String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setLong(1, Long.parseLong(id));
+            ps.setLong(1, id);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -89,7 +78,7 @@ public class UserRepository {
      */
     public User getUserByUsername(String username) throws UserNotFoundException {
         String sql = "SELECT * FROM coworking_service.users WHERE username = ?";
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
 
@@ -112,12 +101,12 @@ public class UserRepository {
      */
     public void updateUser(User user) throws UserNotFoundException {
         String sql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPassword());
             ps.setString(3, user.getRole());
-            ps.setLong(4, Long.parseLong(user.getId()));
+            ps.setLong(4, user.getId());
 
             int rowsAffected = ps.executeUpdate();
             if (rowsAffected == 0) {
@@ -135,7 +124,7 @@ public class UserRepository {
      */
     public void deleteUser(String id) throws UserNotFoundException {
         String sql = "DELETE FROM coworking_service.users WHERE id = ?";
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, Long.parseLong(id));
 
@@ -155,7 +144,7 @@ public class UserRepository {
     public List<User> getAllUsers() {
         String sql = "SELECT * FROM coworking_service.users";
         List<User> users = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
@@ -168,9 +157,15 @@ public class UserRepository {
         return users;
     }
 
+    /**
+     * Maps a row from the ResultSet to a User object.
+     * @param rs the ResultSet containing user data
+     * @return a User object mapped from the ResultSet
+     * @throws SQLException if a database access error occurs
+     */
     private User mapRowToUser(ResultSet rs) throws SQLException {
         return User.builder()
-                .id(String.valueOf(rs.getLong("id")))
+                .id(rs.getLong("id"))
                 .username(rs.getString("username"))
                 .password(rs.getString("password"))
                 .role(rs.getString("role"))

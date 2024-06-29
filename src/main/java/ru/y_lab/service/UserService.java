@@ -37,5 +37,5 @@ public interface UserService {
      * @return the user with the specified ID
      * @throws UserNotFoundException if the user with the given ID is not found
      */
-    User getUserById(String userId) throws UserNotFoundException;
+    User getUserById(Long userId) throws UserNotFoundException;
 }

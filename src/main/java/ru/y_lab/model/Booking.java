@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 @Builder
 public class Booking {
 
-    private String id;
+    private Long id;
 
-    private String userId;
+    private Long userId;
 
-    private String resourceId;
+    private Long resourceId;
 
     private LocalDateTime startTime;
 

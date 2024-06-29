@@ -11,8 +11,6 @@ public interface ResourceService {
 
     /**
      * Manages resources including CRUD operations.
-     * @throws ResourceNotFoundException if a resource is not found
-     * @throws UserNotFoundException if the user is not found
      */
     void manageResources();
 
@@ -28,6 +26,6 @@ public interface ResourceService {
      * @return the resource with the specified ID
      * @throws ResourceNotFoundException if the resource with the given ID is not found
      */
-    Resource getResourceById(String resourceId) throws ResourceNotFoundException;
+    Resource getResourceById(Long resourceId) throws ResourceNotFoundException;
 
 }

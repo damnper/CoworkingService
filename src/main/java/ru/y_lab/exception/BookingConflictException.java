@@ -12,13 +12,4 @@ public class BookingConflictException extends Exception {
     public BookingConflictException(String message) {
         super(message);
     }
-
-    /**
-     * Constructs a new BookingConflictException with the specified detail message and cause.
-     * @param message the detail message
-     * @param cause the cause
-     */
-    public BookingConflictException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

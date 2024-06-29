@@ -8,15 +8,11 @@ import liquibase.exception.LiquibaseException;
 import liquibase.resource.ClassLoaderResourceAccessor;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 public class LiquibaseInitializer {
 
-    private static final String URL = "jdbc:postgresql://localhost:5436/coworkingdb";
-    private static final String USER = "daler";
-    private static final String PASSWORD = "daler123";
     private static final String CHANGELOG_FILE = "db/changelog.xml";
     private static final String DEFAULT_SCHEMA = "liquibase";
 
@@ -25,8 +21,8 @@ public class LiquibaseInitializer {
         Liquibase liquibase = null;
 
         try {
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            createSchemaIfNotExists(connection, DEFAULT_SCHEMA);
+            connection = DatabaseManager.getConnection();
+            createSchemaIfNotExists(connection);
 
             Database database = DatabaseFactory.getInstance()
                     .findCorrectDatabaseImplementation(new JdbcConnection(connection));
@@ -42,22 +38,22 @@ public class LiquibaseInitializer {
                 try {
                     liquibase.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.out.println("Error during closing liquibase: " + e.getMessage());
                 }
             }
             if (connection != null) {
                 try {
                     connection.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.out.println("Error during closing connection: " + e.getMessage());
                 }
             }
         }
     }
 
-    private static void createSchemaIfNotExists(Connection connection, String schemaName) throws SQLException {
+    private static void createSchemaIfNotExists(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + schemaName);
+            stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + DEFAULT_SCHEMA);
         }
     }
 }
