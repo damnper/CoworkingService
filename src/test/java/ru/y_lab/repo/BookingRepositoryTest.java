@@ -1,39 +1,113 @@
 package ru.y_lab.repo;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.y_lab.config.DatabaseConfig;
+import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.model.Booking;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for the BookingRepository class.
  */
+@Testcontainers
 @DisplayName("Unit Tests for BookingRepositoryTest")
 public class BookingRepositoryTest {
 
     private BookingRepository bookingRepository;
 
+    @Container
+    private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:13.3")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+
+    @BeforeAll
+    public static void setUpBeforeAll() {
+        postgresContainer.start();
+        DatabaseConfig dbConfig = new DatabaseConfig();
+        dbConfig.setDriverClassName("org.postgresql.Driver");
+        dbConfig.setUrl(postgresContainer.getJdbcUrl());
+        dbConfig.setUsername(postgresContainer.getUsername());
+        dbConfig.setPassword(postgresContainer.getPassword());
+        DatabaseManager.setConfig(dbConfig);
+
+        try (Connection conn = DatabaseManager.getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("CREATE SCHEMA IF NOT EXISTS coworking_service");
+
+                stmt.execute("SET search_path TO coworking_service");
+
+                stmt.execute("CREATE TABLE IF NOT EXISTS coworking_service.bookings (" +
+                        "id BIGSERIAL PRIMARY KEY, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "resource_id BIGINT NOT NULL, " +
+                        "start_time TIMESTAMP NOT NULL, " +
+                        "end_time TIMESTAMP NOT NULL" +
+                        ");");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error setting up test database", e);
+        }
+    }
+
+    @AfterAll
+    public static void tearDownAfterAll() {
+        try (Connection conn = DatabaseManager.getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("DROP SCHEMA IF EXISTS coworking_service CASCADE");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error tearing down test database", e);
+        }
+    }
+
     @BeforeEach
     public void setUp() {
         bookingRepository = new BookingRepository();
     }
+
+    @AfterEach
+    public void tearDown() {
+        try (Connection conn = DatabaseManager.getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("TRUNCATE TABLE coworking_service.bookings RESTART IDENTITY CASCADE");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error tearing down the database after test", e);
+        }
+    }
+
     /**
      * Test case for adding a booking to the repository.
      */
     @Test
     public void testAddBooking() {
-        Booking booking = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+        LocalDateTime startTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime endTime = startTime.plusHours(1);
+        Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
+
         bookingRepository.addBooking(booking);
 
-        Booking retrievedBooking = bookingRepository.getBookingById("1");
+        Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
-        assertEquals(booking, retrievedBooking);
+
+        assertEquals(booking.getId(), retrievedBooking.getId());
+        assertEquals(booking.getUserId(), retrievedBooking.getUserId());
+        assertEquals(booking.getResourceId(), retrievedBooking.getResourceId());
+        assertEquals(booking.getStartTime(), retrievedBooking.getStartTime());
+        assertEquals(booking.getEndTime(), retrievedBooking.getEndTime());
     }
 
     /**
@@ -43,10 +117,13 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testGetBookingById() throws BookingNotFoundException {
-        Booking booking = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+        LocalDateTime startTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime endTime = startTime.plusHours(1);
+        Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
+
         bookingRepository.addBooking(booking);
 
-        Booking retrievedBooking = bookingRepository.getBookingById("1");
+        Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
         assertEquals(booking, retrievedBooking);
     }
@@ -56,7 +133,9 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testGetBookingByIdNotFound() {
-        assertThrows(BookingNotFoundException.class, () -> bookingRepository.getBookingById("nonexistent_id"));
+        Optional<Booking> optionalBooking = bookingRepository.getBookingById(999L);
+
+        assertTrue(optionalBooking.isEmpty(), "Booking should have not been found");
     }
 
     /**
@@ -66,15 +145,31 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testUpdateBooking() throws BookingNotFoundException {
-        Booking booking = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.addBooking(booking);
+        LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
 
-        Booking updatedBooking = new Booking("1", "user1", "resource2", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+        Booking booking = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
+
+        Booking savedBooking = bookingRepository.addBooking(booking);
+
+        LocalDateTime newStartTime = LocalDateTime.of(2024, 6, 30, 12, 0, 0, 0);
+        LocalDateTime newEndTime = newStartTime.plusHours(2);
+
+        Booking updatedBooking = new Booking(savedBooking.getId(), 1L, 1L, newStartTime, newEndTime);
+
         bookingRepository.updateBooking(updatedBooking);
 
-        Booking retrievedBooking = bookingRepository.getBookingById("1");
-        assertNotNull(retrievedBooking);
-        assertEquals(updatedBooking, retrievedBooking);
+        Booking retrievedBooking = bookingRepository.getBookingById(savedBooking.getId()).orElse(null);
+
+        assertNotNull(retrievedBooking, "The updated booking should not be null.");
+
+        // Проверяем, что обновленное бронирование имеет правильные значения
+        assertEquals(updatedBooking.getId(), retrievedBooking.getId(), "Booking ID does not match.");
+        assertEquals(updatedBooking.getUserId(), retrievedBooking.getUserId(), "User ID does not match.");
+        assertEquals(updatedBooking.getResourceId(), retrievedBooking.getResourceId(), "Resource ID does not match.");
+        assertEquals(updatedBooking.getStartTime(), retrievedBooking.getStartTime(), "Start time does not match.");
+        assertEquals(updatedBooking.getEndTime(), retrievedBooking.getEndTime(), "End time does not match.");
+
     }
 
     /**
@@ -82,22 +177,22 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testUpdateNonExistentBooking() {
-        Booking nonExistentBooking = new Booking("nonexistent_id", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        assertThrows(BookingNotFoundException.class, () -> bookingRepository.updateBooking(nonExistentBooking));
+        Booking nonExistentBooking = new Booking(999L, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+        assertThrows(RuntimeException.class, () -> bookingRepository.updateBooking(nonExistentBooking));
     }
 
     /**
      * Test case for deleting an existing booking.
-     *
-     * @throws BookingNotFoundException if the booking to delete is not found
      */
     @Test
-    public void testDeleteBooking() throws BookingNotFoundException {
-        Booking booking = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+    public void testDeleteBooking() {
+        Booking booking = new Booking(null, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
         bookingRepository.addBooking(booking);
 
-        bookingRepository.deleteBooking("1");
-        assertThrows(BookingNotFoundException.class, () -> bookingRepository.getBookingById("1"));
+        bookingRepository.deleteBooking(booking.getId());
+
+        Optional<Booking> optionalResource = bookingRepository.getBookingById(booking.getId());
+        assertTrue(optionalResource.isEmpty(), "Booking should have been deleted");
     }
 
     /**
@@ -105,7 +200,7 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testDeleteNonExistentBooking() {
-        assertThrows(BookingNotFoundException.class, () -> bookingRepository.deleteBooking("nonexistent_id"));
+        assertThrows(RuntimeException.class, () -> bookingRepository.deleteBooking(999L));
     }
 
     /**
@@ -113,15 +208,34 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testGetAllBookings() {
-        Booking booking1 = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        Booking booking2 = new Booking("2", "user2", "resource2", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.addBooking(booking1);
-        bookingRepository.addBooking(booking2);
+        LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
+
+        Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
+        Booking booking2 = new Booking(null, 2L, 2L, fixedStartTime, fixedEndTime);
+
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
 
         List<Booking> allBookings = bookingRepository.getAllBookings();
-        assertEquals(2, allBookings.size());
-        assertTrue(allBookings.contains(booking1));
-        assertTrue(allBookings.contains(booking2));
+
+        assertEquals(2, allBookings.size(), "The number of bookings retrieved does not match the expected size.");
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking1.getId()) &&
+                        b.getUserId().equals(booking1.getUserId()) &&
+                        b.getResourceId().equals(booking1.getResourceId()) &&
+                        b.getStartTime().equals(booking1.getStartTime()) &&
+                        b.getEndTime().equals(booking1.getEndTime())
+        ), "Booking1 is not present in the retrieved bookings.");
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking2.getId()) &&
+                        b.getUserId().equals(booking2.getUserId()) &&
+                        b.getResourceId().equals(booking2.getResourceId()) &&
+                        b.getStartTime().equals(booking2.getStartTime()) &&
+                        b.getEndTime().equals(booking2.getEndTime())
+        ), "Booking2 is not present in the retrieved bookings.");
     }
 
     /**
@@ -129,15 +243,34 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testGetBookingsByUserId() {
-        Booking booking1 = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        Booking booking2 = new Booking("2", "user1", "resource2", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.addBooking(booking1);
-        bookingRepository.addBooking(booking2);
+        LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
 
-        List<Booking> user1Bookings = bookingRepository.getBookingsByUserId("user1");
-        assertEquals(2, user1Bookings.size());
-        assertTrue(user1Bookings.contains(booking1));
-        assertTrue(user1Bookings.contains(booking2));
+        Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
+        Booking booking2 = new Booking(null, 1L, 2L, fixedStartTime, fixedEndTime);
+
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
+
+        List<Booking> allBookings = bookingRepository.getAllBookings();
+
+        assertEquals(2, allBookings.size());
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking1.getId()) &&
+                        b.getUserId().equals(booking1.getUserId()) &&
+                        b.getResourceId().equals(booking1.getResourceId()) &&
+                        b.getStartTime().equals(booking1.getStartTime()) &&
+                        b.getEndTime().equals(booking1.getEndTime())
+        ), "Booking1 is not present in the retrieved bookings.");
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking2.getId()) &&
+                        b.getUserId().equals(booking2.getUserId()) &&
+                        b.getResourceId().equals(booking2.getResourceId()) &&
+                        b.getStartTime().equals(booking2.getStartTime()) &&
+                        b.getEndTime().equals(booking2.getEndTime())
+        ), "Booking2 is not present in the retrieved bookings.");
     }
 
     /**
@@ -145,14 +278,33 @@ public class BookingRepositoryTest {
      */
     @Test
     public void testGetBookingsByResourceId() {
-        Booking booking1 = new Booking("1", "user1", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        Booking booking2 = new Booking("2", "user2", "resource1", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.addBooking(booking1);
-        bookingRepository.addBooking(booking2);
+        LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
+        LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
 
-        List<Booking> resource1Bookings = bookingRepository.getBookingsByResourceId("resource1");
-        assertEquals(2, resource1Bookings.size());
-        assertTrue(resource1Bookings.contains(booking1));
-        assertTrue(resource1Bookings.contains(booking2));
+        Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
+        Booking booking2 = new Booking(null, 2L, 1L, fixedStartTime, fixedEndTime);
+
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
+
+        List<Booking> allBookings = bookingRepository.getBookingsByResourceId(1L);
+
+        assertEquals(2, allBookings.size());
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking1.getId()) &&
+                        b.getUserId().equals(booking1.getUserId()) &&
+                        b.getResourceId().equals(booking1.getResourceId()) &&
+                        b.getStartTime().equals(booking1.getStartTime()) &&
+                        b.getEndTime().equals(booking1.getEndTime())
+        ), "Booking1 is not present in the retrieved bookings.");
+
+        assertTrue(allBookings.stream().anyMatch(b ->
+                b.getId().equals(savedBooking2.getId()) &&
+                        b.getUserId().equals(booking2.getUserId()) &&
+                        b.getResourceId().equals(booking2.getResourceId()) &&
+                        b.getStartTime().equals(booking2.getStartTime()) &&
+                        b.getEndTime().equals(booking2.getEndTime())
+        ), "Booking2 is not present in the retrieved bookings.");
     }
 }

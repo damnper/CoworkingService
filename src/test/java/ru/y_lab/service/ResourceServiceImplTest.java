@@ -11,13 +11,18 @@ import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepository;
 import ru.y_lab.service.impl.ResourceServiceImpl;
+import ru.y_lab.ui.ResourceUI;
 import ru.y_lab.util.InputReader;
 
-import java.util.ArrayList;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static ru.y_lab.constants.ColorTextCodes.*;
 
 /**
  * Unit tests for {@link ResourceServiceImpl}.
@@ -34,6 +39,9 @@ public class ResourceServiceImplTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private ResourceUI resourceUI;
+
     private ResourceServiceImpl resourceService;
 
     /**
@@ -42,96 +50,104 @@ public class ResourceServiceImplTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        resourceService = new ResourceServiceImpl(inputReader, resourceRepository, userService);
+        resourceService = new ResourceServiceImpl(inputReader, resourceRepository, userService, resourceUI);
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#getResourceById(String)} when the resource exists.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
+     * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource exists.
      */
     @Test
-    public void testGetResourceById_ResourceExists() throws ResourceNotFoundException {
-        Resource mockResource = new Resource("1", "userId", "resourceName", "resourceType");
-        when(resourceRepository.getResourceById("1")).thenReturn(mockResource);
+    public void testGetResourceById_ResourceExists() {
+        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
 
-        Resource resource = resourceService.getResourceById("1");
+        Resource resource = resourceService.getResourceById(1L);
 
         assertNotNull(resource);
-        assertEquals("1", resource.getId());
-        assertEquals("userId", resource.getUserId());
+        assertEquals(1L, resource.getId());
+        assertEquals(2L, resource.getUserId());
         assertEquals("resourceName", resource.getName());
-        assertEquals("resourceType", resource.getType());
+        assertEquals("Workspace", resource.getType());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#getResourceById(String)} when the resource does not exist.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
+     * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource does not exist.
      */
     @Test
-    public void testGetResourceById_ResourceNotFound() throws ResourceNotFoundException {
-        when(resourceRepository.getResourceById("1")).thenReturn(null);
+    public void testGetResourceById_ResourceNotFound() {
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> resourceService.getResourceById("1"));
+        assertThrows(ResourceNotFoundException.class, () -> resourceService.getResourceById(1L));
     }
 
     /**
      * Test case for {@link ResourceServiceImpl#manageResources()} when the user is not logged in.
-     *
-     * @throws UserNotFoundException if the user is not found
-     * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
-    public void testManageResources_UserNotLoggedIn() throws UserNotFoundException, ResourceNotFoundException {
+    public void testManageResources_UserNotLoggedIn() {
         when(userService.getCurrentUser()).thenReturn(null);
 
         resourceService.manageResources();
 
         verify(userService, times(1)).getCurrentUser();
+        verifyNoMoreInteractions(resourceUI);
+    }
+
+    /**
+     * Test case for {@link ResourceServiceImpl#manageResources()} when the user is logged in.
+     * Verifies the management flow with valid choices.
+     */
+    @Test
+    public void testManageResources_UserLoggedIn() {
+        User mockUser = new User(1L, "username", "password", "USER");
+        when(userService.getCurrentUser()).thenReturn(mockUser);
+        when(inputReader.getUserChoice()).thenReturn(0);
+
+        resourceService.manageResources();
+
+        verify(resourceUI, times(1)).showResourceMenu(userService);
+        verifyNoMoreInteractions(resourceUI);
     }
 
     /**
      * Test case for {@link ResourceServiceImpl#viewResources()} when no resources are available.
-     *
      * @throws UserNotFoundException if the user is not found
      */
     @Test
     public void testViewResources_NoResourcesAvailable() throws UserNotFoundException {
-        when(resourceRepository.getAllResources()).thenReturn(new ArrayList<>());
+        when(resourceRepository.getAllResources()).thenReturn(Collections.emptyList());
 
         resourceService.viewResources();
 
         verify(resourceRepository, times(1)).getAllResources();
+        verify(resourceUI, times(0)).showAvailableResources(any(), any()); // No resources to show
     }
+
     /**
      * Test case for {@link ResourceServiceImpl#viewResources()} when resources are available.
-     *
      * @throws UserNotFoundException if the user is not found
      */
     @Test
     public void testViewResources_WithResources() throws UserNotFoundException {
-        Resource mockResource = new Resource("1", "userId", "resourceName", "resourceType");
+        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
         List<Resource> resources = List.of(mockResource);
         when(resourceRepository.getAllResources()).thenReturn(resources);
-        User mockUser = new User("userId", "username", "password", "USER");
-        when(userService.getUserById("userId")).thenReturn(mockUser);
+        User mockUser = new User(1L, "username", "password", "USER");
+        when(userService.getUserById(2L)).thenReturn(mockUser);
 
         resourceService.viewResources();
 
         verify(resourceRepository, times(1)).getAllResources();
-        verify(userService, times(1)).getUserById("userId");
+        verify(resourceUI, times(1)).showAvailableResources(resources, userService);
     }
 
     /**
      * Test case for {@link ResourceServiceImpl#addResource()}.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
-    public void testAddResource() throws ResourceNotFoundException {
-        when(inputReader.readLine()).thenReturn("resourceName", "Workspace");
-        User mockUser = new User("userId", "username", "password", "USER");
+    public void testAddResource() {
+        when(inputReader.readLine()).thenReturn("New Resource", "Workspace");
+        User mockUser = new User(1L, "username", "password", "USER");
         when(userService.getCurrentUser()).thenReturn(mockUser);
         doNothing().when(resourceRepository).addResource(any(Resource.class));
 
@@ -147,10 +163,10 @@ public class ResourceServiceImplTest {
      */
     @Test
     public void testUpdateResource_ResourceExists() throws ResourceNotFoundException {
-        Resource mockResource = new Resource("1", "userId", "resourceName", "resourceType");
-        when(inputReader.readLine()).thenReturn("1", "newResourceName", "newResourceType");
-        when(resourceRepository.getResourceById("1")).thenReturn(mockResource);
-        User mockUser = new User("userId", "Admin", "admin", "ADMIN");
+        Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
+        when(inputReader.readLine()).thenReturn("1", "Updated Resource", "Conference Room");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
+        User mockUser = new User(1L, "username", "password", "USER");
         when(userService.getCurrentUser()).thenReturn(mockUser);
 
         resourceService.updateResource();
@@ -160,17 +176,27 @@ public class ResourceServiceImplTest {
 
     /**
      * Test case for {@link ResourceServiceImpl#updateResource()} when the resource does not exist.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
     public void testUpdateResource_ResourceNotFound() throws ResourceNotFoundException {
-        when(inputReader.readLine()).thenReturn("1");
-        when(resourceRepository.getResourceById("1")).thenReturn(null);
+        when(inputReader.readLine()).thenReturn("1");  // Simulate user input
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());  // Simulate resource not found
 
-        resourceService.updateResource();
+        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        PrintStream originalSystemOut = System.out;
+        System.setOut(new PrintStream(outContent));
 
-        verify(resourceRepository, times(1)).getResourceById("1");
+        ResourceNotFoundException thrownException = assertThrows(ResourceNotFoundException.class, () -> resourceService.updateResource());
+
+        assertEquals(YELLOW + "Resource with ID " + 1L + " not found" + RESET, thrownException.getMessage());
+
+        String expectedOutput = CYAN + "Enter resource ID: " + RESET;
+        assertEquals(expectedOutput, outContent.toString());
+
+        System.setOut(originalSystemOut);
+
+        verify(resourceRepository, times(1)).getResourceById(1L);
+        verify(resourceRepository, never()).updateResource(any(Resource.class));
     }
 
     /**
@@ -180,30 +206,75 @@ public class ResourceServiceImplTest {
      */
     @Test
     public void testDeleteResources_ResourceExists() throws ResourceNotFoundException {
-        Resource mockResource = new Resource("1", "userId", "resourceName", "resourceType");
+        Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
         when(inputReader.readLine()).thenReturn("1");
-        when(resourceRepository.getResourceById("1")).thenReturn(mockResource);
-        User mockUser = new User("userId", "Admin", "admin", "ADMIN");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
+        User mockUser = new User(1L, "username", "password", "USER");
         when(userService.getCurrentUser()).thenReturn(mockUser);
-        doNothing().when(resourceRepository).deleteResource("1");
+        doNothing().when(resourceRepository).deleteResource(1L);
 
         resourceService.deleteResources();
 
-        verify(resourceRepository, times(1)).deleteResource("1");
+        verify(resourceRepository, times(1)).deleteResource(1L);
     }
 
     /**
      * Test case for {@link ResourceServiceImpl#deleteResources()} when the resource does not exist.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
-    public void testDeleteResources_ResourceNotFound() throws ResourceNotFoundException {
+    public void testDeleteResources_ResourceNotFound() {
         when(inputReader.readLine()).thenReturn("1");
-        when(resourceRepository.getResourceById("1")).thenReturn(null);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
         resourceService.deleteResources();
 
-        verify(resourceRepository, times(1)).getResourceById("1");
+        verify(resourceRepository, times(1)).getResourceById(1L);
+        verifyNoMoreInteractions(resourceRepository);
+    }
+
+    /**
+     * Test case for {@link ResourceServiceImpl#manageResources()} when an invalid choice is made.
+     */
+    @Test
+    public void testManageResources_InvalidChoice() {
+        User mockUser = new User(1L, "username", "password", "USER");
+        when(userService.getCurrentUser()).thenReturn(mockUser);
+        when(inputReader.getUserChoice()).thenReturn(99, 0);  // Invalid choice
+
+        resourceService.manageResources();
+
+        verify(resourceUI, times(2)).showResourceMenu(userService);
+    }
+
+    /**
+     * Test case for {@link ResourceServiceImpl#updateResource()} when the user tries to update a resource they do not own.
+     */
+    @Test
+    public void testUpdateResource_NoAccess() throws Exception {
+        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
+        when(inputReader.readLine()).thenReturn("1", "newName", "newType");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
+        User mockUser = new User(1L, "username", "password", "USER");
+        when(userService.getCurrentUser()).thenReturn(mockUser);
+
+        resourceService.updateResource();
+
+        verify(resourceRepository, times(0)).updateResource(any(Resource.class));
+    }
+
+    /**
+     * Test case for {@link ResourceServiceImpl#deleteResources()} when the user tries to delete a resource they do not own.
+     */
+    @Test
+    public void testDeleteResources_NoAccess() throws Exception {
+        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
+        when(inputReader.readLine()).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
+        User mockUser = new User(1L, "username", "password", "USER");
+        when(userService.getCurrentUser()).thenReturn(mockUser);
+
+        resourceService.deleteResources();
+
+        verify(resourceRepository, times(0)).deleteResource(anyLong());
     }
 }
