@@ -7,9 +7,9 @@
 
     <changeSet id="02-create-tables" author="Daler Yunusov">
         <!-- Create sequences -->
-        <createSequence sequenceName="user_id_seq" schemaName="coworking_service"/>
-        <createSequence sequenceName="resource_id_seq" schemaName="coworking_service"/>
-        <createSequence sequenceName="booking_id_seq" schemaName="coworking_service"/>
+        <createSequence sequenceName="users_id_seq" schemaName="coworking_service"/>
+        <createSequence sequenceName="resources_id_seq" schemaName="coworking_service"/>
+        <createSequence sequenceName="bookings_id_seq" schemaName="coworking_service"/>
 
         <!-- Create tables -->
         <createTable tableName="users" schemaName="coworking_service">
