@@ -50,6 +50,7 @@ public class UserServiceImplTest {
      * Validates that a user with valid credentials can be registered.
      */
     @Test
+    @DisplayName("Test Register User Successfully")
     public void testRegisterUser_Success() {
         when(inputReader.readLine()).thenReturn("validUsername", "validPassword@123");
         User user = new User(2L, "validUsername", "validPassword@123", "USER");
@@ -70,6 +71,7 @@ public class UserServiceImplTest {
      * Verifies that user registration does not proceed with an invalid username.
      */
     @Test
+    @DisplayName("Test Register User With Invalid Username")
     public void testRegisterUser_InvalidUsername() {
         when(inputReader.readLine())
                 .thenReturn("in")
@@ -86,6 +88,7 @@ public class UserServiceImplTest {
      * Verifies that user registration does not proceed with an invalid password.
      */
     @Test
+    @DisplayName("Test Register User With Invalid Password")
     public void testRegisterUser_InvalidPassword() {
         when(inputReader.readLine())
                 .thenReturn("validUsername")
@@ -101,6 +104,7 @@ public class UserServiceImplTest {
      * Verifies that user registration fails if the username is already taken.
      */
     @Test
+    @DisplayName("Test Register User With Username Already Taken")
     public void testRegisterUser_UsernameTaken() throws UserNotFoundException {
         when(inputReader.readLine()).thenReturn("existingUsername", "validPassword@123");
         when(userRepository.getUserByUsername("existingUsername")).thenReturn(new User(1L, "existingUsername", "somePassword", "USER"));
@@ -118,6 +122,7 @@ public class UserServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Login User Successfully")
     public void testLoginUser_Success() throws UserNotFoundException {
         when(inputReader.readLine()).thenReturn("validUsername", "validPassword@123");
 
@@ -139,6 +144,7 @@ public class UserServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Login User Failure Due to Incorrect Password")
     public void testLoginUser_Failure() throws UserNotFoundException {
         when(inputReader.readLine()).thenReturn("validUsername", "validPassword@123");
 
@@ -157,6 +163,7 @@ public class UserServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Login User When User Not Found")
     public void testLoginUser_UserNotFound() throws UserNotFoundException {
         when(inputReader.readLine()).thenReturn("nonExistentUsername", "validPassword@123");
 
@@ -172,6 +179,7 @@ public class UserServiceImplTest {
      * Validates retrieval of the current user set in the service.
      */
     @Test
+    @DisplayName("Test Getting Current User")
     public void testGetCurrentUser() {
         User user = new User(2L, "validUsername", "validPassword@123", "USER");
         userService.setCurrentUser(user);
@@ -186,6 +194,7 @@ public class UserServiceImplTest {
      * Verifies that viewing all users behaves correctly when there are no users in the repository.
      */
     @Test
+    @DisplayName("Test Viewing All Users When No Users Available")
     public void testViewAllUsers_NoUsers() {
         when(userRepository.getAllUsers()).thenReturn(new ArrayList<>());
 
@@ -199,6 +208,7 @@ public class UserServiceImplTest {
      * Verifies that viewing all users behaves correctly when there are users in the repository.
      */
     @Test
+    @DisplayName("Test Viewing All Users With Users Available")
     public void testViewAllUsers_WithUsers() {
         List<User> users = new ArrayList<>();
         users.add(new User(2L, "user1", "password1", "USER"));
@@ -217,6 +227,7 @@ public class UserServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Getting User By ID When User Found")
     public void testGetUserById_Found() throws UserNotFoundException {
         User user = new User(2L, "validUsername", "validPassword@123", "USER");
         when(userRepository.getUserById(2L)).thenReturn(user);
@@ -234,6 +245,7 @@ public class UserServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Getting User By ID When User Not Found")
     public void testGetUserById_NotFound() throws UserNotFoundException {
         when(userRepository.getUserById(999L)).thenThrow(new UserNotFoundException("User not found"));
 

@@ -69,6 +69,7 @@ public class BookingServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Adding Booking Successfully")
     public void testAddBookingSuccessfully() throws ResourceNotFoundException {
         Long resourceId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -91,6 +92,7 @@ public class BookingServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Adding Booking Conflict")
     public void testAddBookingConflict() throws ResourceNotFoundException {
         Long resourceId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -114,6 +116,7 @@ public class BookingServiceImplTest {
      * Test case for cancelling a booking successfully.
      */
     @Test
+    @DisplayName("Test Cancelling Booking Successfully")
     public void testCancelBookingSuccessfully() {
         Long bookingId = 1L;
         User currentUser = new User(1L, "user-name", "password", "USER");
@@ -132,6 +135,7 @@ public class BookingServiceImplTest {
      * Test case for cancelling a booking that does not exist.
      */
     @Test
+    @DisplayName("Test Cancelling Booking Not Found")
     public void testCancelBookingNotFound() {
         Long bookingId = 1L;
 
@@ -161,6 +165,7 @@ public class BookingServiceImplTest {
      * @throws UserNotFoundException if user is not found
      */
     @Test
+    @DisplayName("Test Viewing User Bookings")
     public void testViewUserBookings() throws ResourceNotFoundException, UserNotFoundException {
         User currentUser = new User(1L, "user-name", "password", "USER");
         Resource resource = new Resource(2L, 1L, "Resource Name", "Workspace");
@@ -181,6 +186,7 @@ public class BookingServiceImplTest {
      * Test case for viewing available booking slots for a resource.
      */
     @Test
+    @DisplayName("Test Viewing Available Slots")
     public void testViewAvailableSlots() {
         Long resourceId = 2L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -202,6 +208,7 @@ public class BookingServiceImplTest {
      * Test case for updating a booking successfully without conflicts.
      */
     @Test
+    @DisplayName("Test Updating Booking Successfully")
     public void testUpdateBookingSuccessfully() {
         Long bookingId = 5L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -223,6 +230,7 @@ public class BookingServiceImplTest {
      * Test case for updating a booking that conflicts with another booking.
      */
     @Test
+    @DisplayName("Test Updating Booking Conflict")
     public void testUpdateBookingConflict() {
         Long bookingId = 6L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -245,6 +253,7 @@ public class BookingServiceImplTest {
      * Test case for updating a booking that does not exist.
      */
     @Test
+    @DisplayName("Test Updating Booking Not Found")
     public void testUpdateBookingNotFound() {
         Long bookingId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -263,6 +272,7 @@ public class BookingServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Getting Booking Date Time Successfully")
     public void testGetBookingDateTime_SuccessfulBooking() throws ResourceNotFoundException {
         Long resourceId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -284,6 +294,7 @@ public class BookingServiceImplTest {
      * Test case for getting booking date time with invalid time format.
      */
     @Test
+    @DisplayName("Test Getting Booking Date Time with Invalid Time Format")
     public void testGetBookingDateTime_InvalidTimeFormat() {
         Long resourceId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -321,6 +332,7 @@ public class BookingServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Getting Booking Date Time When Viewing Available Slots")
     public void testGetBookingDateTime_ViewAvailableSlots() throws ResourceNotFoundException {
         Long resourceId = 1L;
         LocalDate date = LocalDate.of(2023, 6, 23);
@@ -343,6 +355,7 @@ public class BookingServiceImplTest {
      * Test case for managing bookings when user is not logged in.
      */
     @Test
+    @DisplayName("Test Managing Bookings When User is Not Logged In")
     public void testManageBookings_UserNotLoggedIn() {
         when(userService.getCurrentUser()).thenReturn(null);
 
@@ -355,6 +368,7 @@ public class BookingServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Managing Bookings: Adding a Booking")
     public void testManageBookings_AddBooking() throws ResourceNotFoundException {
         User currentUser = new User(1L, "username", "password", "USER");
         Long resourceId = 1L;
@@ -378,6 +392,7 @@ public class BookingServiceImplTest {
      * Test case for managing bookings: cancelling a booking.
      */
     @Test
+    @DisplayName("Test Managing Bookings: Cancelling a Booking")
     public void testManageBookings_CancelBooking() {
         User currentUser = new User(1L, "username", "password", "USER");
         Long bookingId = 1L;
@@ -404,6 +419,7 @@ public class BookingServiceImplTest {
      * @throws UserNotFoundException if user is not found
      */
     @Test
+    @DisplayName("Test Managing Bookings: Viewing User's Bookings")
     public void testManageBookings_ViewUserBookings() throws UserNotFoundException, ResourceNotFoundException {
         User currentUser = new User(1L, "username", "password", "USER");
         Booking booking1 = new Booking(1L, 1L, 1L, LocalDateTime.of(2023, 6, 23, 10, 0), LocalDateTime.of(2023, 6, 23, 11, 0));
@@ -425,6 +441,7 @@ public class BookingServiceImplTest {
      * Test case for managing bookings: updating a booking.
      */
     @Test
+    @DisplayName("Test Managing Bookings: Updating a Booking")
     public void testManageBookings_UpdateBooking() {
         User currentUser = new User(1L, "username", "password", "USER");
         Long bookingId = 1L;
@@ -451,6 +468,7 @@ public class BookingServiceImplTest {
      * Test case for managing bookings: viewing available booking slots.
      */
     @Test
+    @DisplayName("Test Managing Bookings: Viewing Available Slots")
     public void testManageBookings_ViewAvailableSlots() {
         User currentUser = new User(1L, "username", "password", "USER");
         Long resourceId = 1L;
@@ -473,6 +491,7 @@ public class BookingServiceImplTest {
      * @throws UserNotFoundException if user is not found
      */
     @Test
+    @DisplayName("Test Filtering Bookings by Date Successfully")
     public void testFilterBookings_ByDate_Success() throws UserNotFoundException, ResourceNotFoundException {
         // Подготовка данных для теста
         User currentUser = new User(1L, "username", "password", "USER");
@@ -485,9 +504,9 @@ public class BookingServiceImplTest {
         when(userService.getCurrentUser()).thenReturn(currentUser);
         when(userService.getUserById(currentUser.getId())).thenReturn(currentUser);
         when(resourceService.getResourceById(anyLong())).thenReturn(resource);
-        when(inputReader.getUserChoice()).thenReturn(1);  // Выбор действия для фильтрации
-        when(inputReader.readLine()).thenReturn(date.toString());  // Ввод даты
-        when(bookingRepository.getAllBookings()).thenReturn(bookingsByDate);  // Возвращаем список бронирований
+        when(inputReader.getUserChoice()).thenReturn(1);
+        when(inputReader.readLine()).thenReturn(date.toString());
+        when(bookingRepository.getAllBookings()).thenReturn(bookingsByDate);
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PrintStream originalSystemOut = System.out;

@@ -6,13 +6,13 @@
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
 
     <changeSet id="02-create-tables" author="Daler Yunusov">
-        <!-- Create sequences -->
-        <createSequence sequenceName="users_id_seq" schemaName="coworking_service"/>
-        <createSequence sequenceName="resources_id_seq" schemaName="coworking_service"/>
-        <createSequence sequenceName="bookings_id_seq" schemaName="coworking_service"/>
+        <!-- Create sequences for the tables -->
+        <createSequence sequenceName="users_id_seq"/>
+        <createSequence sequenceName="resources_id_seq"/>
+        <createSequence sequenceName="bookings_id_seq"/>
 
-        <!-- Create tables -->
-        <createTable tableName="users" schemaName="coworking_service">
+        <!-- Create users table to store user information -->
+        <createTable tableName="users">
             <column name="id" type="BIGINT">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -27,13 +27,14 @@
             </column>
         </createTable>
 
+        <!-- Add auto-increment to the id column in the users table -->
         <addAutoIncrement columnName="id"
                           tableName="users"
-                          schemaName="coworking_service"
                           startWith="2"
                           incrementBy="1"/>
 
-        <createTable tableName="resources" schemaName="coworking_service">
+        <!-- Create resources table to store resource information -->
+        <createTable tableName="resources">
             <column name="id" type="BIGINT">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -48,13 +49,14 @@
             </column>
         </createTable>
 
+        <!-- Add auto-increment to the id column in the resources table -->
         <addAutoIncrement columnName="id"
                           tableName="resources"
-                          schemaName="coworking_service"
                           startWith="1"
                           incrementBy="1"/>
 
-        <createTable tableName="bookings" schemaName="coworking_service">
+        <!-- Create bookings table to store booking information -->
+        <createTable tableName="bookings">
             <column name="id" type="BIGINT">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -72,9 +74,9 @@
             </column>
         </createTable>
 
+        <!-- Add auto-increment to the id column in the bookings table -->
         <addAutoIncrement columnName="id"
                           tableName="bookings"
-                          schemaName="coworking_service"
                           startWith="1"
                           incrementBy="1"/>
     </changeSet>

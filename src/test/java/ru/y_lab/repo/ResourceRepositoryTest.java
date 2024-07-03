@@ -90,6 +90,7 @@ public class ResourceRepositoryTest {
     * Test case for adding a resource to the repository.
      */
     @Test
+    @DisplayName("Test Adding a New Resource")
     public void testAddResource(){
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
@@ -106,6 +107,7 @@ public class ResourceRepositoryTest {
      * Test case for retrieving a resource by ID.
      */
     @Test
+    @DisplayName("Test Retrieving a Resource by ID")
     public void testGetResourceById() {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
@@ -123,6 +125,7 @@ public class ResourceRepositoryTest {
      * @throws ResourceNotFoundException if the resource to update is not found
      */
     @Test
+    @DisplayName("Test Updating an Existing Resource")
     public void testUpdateResource() throws ResourceNotFoundException {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
@@ -141,6 +144,7 @@ public class ResourceRepositoryTest {
      * @throws ResourceNotFoundException if the resource to delete is not found
      */
     @Test
+    @DisplayName("Test Deleting an Existing Resource")
     public void testDeleteResource() throws ResourceNotFoundException {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
@@ -156,6 +160,7 @@ public class ResourceRepositoryTest {
      * Test case for retrieving all resources from the repository.
      */
     @Test
+    @DisplayName("Test Retrieving All Resources")
     public void testGetAllResources() {
         Resource resource1 = new Resource(null, 1L, "Black room", "Workspace");
         Resource resource2 = new Resource(null, 2L, "White room", "Workspace");

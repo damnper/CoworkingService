@@ -7,7 +7,9 @@
 
     <changeSet id="01-create-schema" author="Daler Yunusov">
         <sql splitStatements="false" endDelimiter=";">
+            <!-- Creating schema for coworking service -->
             CREATE SCHEMA coworking_service;
         </sql>
+        <!-- ChangeSet for creating initial schema for the coworking service -->
     </changeSet>
 </databaseChangeLog>

@@ -57,6 +57,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource exists.
      */
     @Test
+    @DisplayName("Test Getting Resource By ID When Resource Exists")
     public void testGetResourceById_ResourceExists() {
         Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
@@ -74,6 +75,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource does not exist.
      */
     @Test
+    @DisplayName("Test Getting Resource By ID When Resource Not Found")
     public void testGetResourceById_ResourceNotFound() {
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
@@ -84,6 +86,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#manageResources()} when the user is not logged in.
      */
     @Test
+    @DisplayName("Test Managing Resources When User Not Logged In")
     public void testManageResources_UserNotLoggedIn() {
         when(userService.getCurrentUser()).thenReturn(null);
 
@@ -98,6 +101,7 @@ public class ResourceServiceImplTest {
      * Verifies the management flow with valid choices.
      */
     @Test
+    @DisplayName("Test Managing Resources When User Logged In")
     public void testManageResources_UserLoggedIn() {
         User mockUser = new User(1L, "username", "password", "USER");
         when(userService.getCurrentUser()).thenReturn(mockUser);
@@ -114,6 +118,7 @@ public class ResourceServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Viewing Resources When No Resources Available")
     public void testViewResources_NoResourcesAvailable() throws UserNotFoundException {
         when(resourceRepository.getAllResources()).thenReturn(Collections.emptyList());
 
@@ -128,6 +133,7 @@ public class ResourceServiceImplTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Viewing Resources When Resources Available")
     public void testViewResources_WithResources() throws UserNotFoundException {
         Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
         List<Resource> resources = List.of(mockResource);
@@ -145,6 +151,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#addResource()}.
      */
     @Test
+    @DisplayName("Test Adding Resource")
     public void testAddResource() {
         when(inputReader.readLine()).thenReturn("New Resource", "Workspace");
         User mockUser = new User(1L, "username", "password", "USER");
@@ -162,6 +169,7 @@ public class ResourceServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Updating Resource When Resource Exists")
     public void testUpdateResource_ResourceExists() throws ResourceNotFoundException {
         Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
         when(inputReader.readLine()).thenReturn("1", "Updated Resource", "Conference Room");
@@ -178,6 +186,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#updateResource()} when the resource does not exist.
      */
     @Test
+    @DisplayName("Test Updating Resource When Resource Not Found")
     public void testUpdateResource_ResourceNotFound() throws ResourceNotFoundException {
         when(inputReader.readLine()).thenReturn("1");  // Simulate user input
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());  // Simulate resource not found
@@ -205,6 +214,7 @@ public class ResourceServiceImplTest {
      * @throws ResourceNotFoundException if the resource is not found
      */
     @Test
+    @DisplayName("Test Deleting Resource When Resource Exists")
     public void testDeleteResources_ResourceExists() throws ResourceNotFoundException {
         Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
         when(inputReader.readLine()).thenReturn("1");
@@ -222,6 +232,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#deleteResources()} when the resource does not exist.
      */
     @Test
+    @DisplayName("Test Deleting Resource When Resource Not Found")
     public void testDeleteResources_ResourceNotFound() {
         when(inputReader.readLine()).thenReturn("1");
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
@@ -236,6 +247,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#manageResources()} when an invalid choice is made.
      */
     @Test
+    @DisplayName("Test Managing Resources With Invalid Choice")
     public void testManageResources_InvalidChoice() {
         User mockUser = new User(1L, "username", "password", "USER");
         when(userService.getCurrentUser()).thenReturn(mockUser);
@@ -250,6 +262,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#updateResource()} when the user tries to update a resource they do not own.
      */
     @Test
+    @DisplayName("Test Updating Resource With No Access")
     public void testUpdateResource_NoAccess() throws Exception {
         Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
         when(inputReader.readLine()).thenReturn("1", "newName", "newType");
@@ -266,6 +279,7 @@ public class ResourceServiceImplTest {
      * Test case for {@link ResourceServiceImpl#deleteResources()} when the user tries to delete a resource they do not own.
      */
     @Test
+    @DisplayName("Test Deleting Resource With No Access")
     public void testDeleteResources_NoAccess() throws Exception {
         Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
         when(inputReader.readLine()).thenReturn("1");

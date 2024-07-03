@@ -1,6 +1,7 @@
 package ru.y_lab.ui;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import ru.y_lab.exception.UserNotFoundException;
@@ -32,6 +33,7 @@ public class ResourceConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Resource Menu")
     public void testShowResourceMenu() {
         when(userService.getCurrentUser()).thenReturn(new User(1L, "testUser", "password", "USER"));
 
@@ -48,6 +50,7 @@ public class ResourceConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Available Resources When No Resources Available")
     public void testShowAvailableResources_noResources() throws UserNotFoundException {
         when(userService.getUserById(anyLong())).thenThrow(UserNotFoundException.class);
 
@@ -62,6 +65,7 @@ public class ResourceConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Available Resources With Resources")
     public void testShowAvailableResources_withResources() throws UserNotFoundException {
         User user = new User(1L, "testUser", "password", "USER");
         Resource resource = new Resource(1L, 1L, "Test Resource", "Type A");
@@ -87,6 +91,7 @@ public class ResourceConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Available Resources When User Not Found")
     public void testShowAvailableResources_userNotFound() throws UserNotFoundException {
         when(userService.getUserById(anyLong())).thenThrow(UserNotFoundException.class);
 

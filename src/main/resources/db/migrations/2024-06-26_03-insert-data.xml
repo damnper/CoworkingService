@@ -6,12 +6,14 @@
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
 
     <changeSet id="03-insert-data" author="Daler Yunusov">
-        <insert tableName="users" schemaName="coworking_service">
+        <!-- Insert initial data into the users table -->
+        <insert tableName="users">
             <column name="id" valueNumeric="1"/>
             <column name="username" value="Admin"/>
             <column name="password" value="admin"/>
             <column name="role" value="ADMIN"/>
         </insert>
+        <!-- ChangeSet for inserting initial admin user into the users table -->
     </changeSet>
 
 </databaseChangeLog>

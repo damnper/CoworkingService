@@ -95,6 +95,7 @@ public class UserRepositoryTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Adding a New User")
     public void testAddUser() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
@@ -109,6 +110,7 @@ public class UserRepositoryTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Retrieving a User by ID")
     public void testGetUserById() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
@@ -123,6 +125,7 @@ public class UserRepositoryTest {
      * @throws UserNotFoundException if the user is not found
      */
     @Test
+    @DisplayName("Test Retrieving a User by Username")
     public void testGetUserByUsername() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         userRepository.addUser(user);
@@ -137,6 +140,7 @@ public class UserRepositoryTest {
      * @throws UserNotFoundException if the user to update is not found
      */
     @Test
+    @DisplayName("Test Updating an Existing User")
     public void testUpdateUser() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
@@ -151,6 +155,7 @@ public class UserRepositoryTest {
      * Test case for deleting an existing user.
      */
     @Test
+    @DisplayName("Test Deleting an Existing User")
     public void testDeleteUser() {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
@@ -162,6 +167,7 @@ public class UserRepositoryTest {
      * Test case for retrieving all users from the repository.
      */
     @Test
+    @DisplayName("Test Retrieving All Users")
     public void testGetAllUsers() {
         User user1 = new User(null, "testuser1", "123456", "USER");
         User user2 = new User(null, "testuser2", "123456", "USER");
@@ -177,6 +183,7 @@ public class UserRepositoryTest {
      * Test case for retrieving a user by ID that does not exist, expecting a UserNotFoundException.
      */
     @Test
+    @DisplayName("Test Retrieving Non-Existent User by ID")
     public void testGetUserByIdNotFound() {
         assertThrows(UserNotFoundException.class, () -> userRepository.getUserById(999L));
     }
@@ -185,6 +192,7 @@ public class UserRepositoryTest {
      * Test case for retrieving a user by username that does not exist, expecting a UserNotFoundException.
      */
     @Test
+    @DisplayName("Test Retrieving Non-Existent User by Username")
     public void testGetUserByUsernameNotFound() {
         assertThrows(UserNotFoundException.class, () -> userRepository.getUserByUsername("nonexistent_username"));
     }
@@ -193,6 +201,7 @@ public class UserRepositoryTest {
      * Test case for updating a user that does not exist, expecting a UserNotFoundException.
      */
     @Test
+    @DisplayName("Test Updating Non-Existent User")
     public void testUpdateNonExistentUser() {
         User nonExistentUser = new User(999L, "testuser", "123456", "USER");
         assertThrows(UserNotFoundException.class, () -> userRepository.updateUser(nonExistentUser));
@@ -203,6 +212,7 @@ public class UserRepositoryTest {
      * Also verifies that the repository remains unchanged (no users were deleted).
      */
     @Test
+    @DisplayName("Test Deleting Non-Existent User")
     public void testDeleteNonExistentUser() {
         assertThrows(UserNotFoundException.class, () -> userRepository.deleteUser("999"));
         List<User> allUsers = userRepository.getAllUsers();

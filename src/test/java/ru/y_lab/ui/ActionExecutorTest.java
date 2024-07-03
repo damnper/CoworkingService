@@ -47,6 +47,7 @@ public class ActionExecutorTest {
      * @throws UserNotFoundException если пользователь не найден
      */
     @Test
+    @DisplayName("Test Execute Choice for User Register")
     public void testExecuteChoice_UserRegister() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
         when(userService.getCurrentUser()).thenReturn(new User(1L, "username", "password", "USER"));
 
@@ -65,6 +66,7 @@ public class ActionExecutorTest {
      * @throws UserNotFoundException если пользователь не найден
      */
     @Test
+    @DisplayName("Test Execute Choice for Admin to View All Users")
     public void testExecuteChoice_AdminViewAllUsers() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
         when(userService.getCurrentUser()).thenReturn(new User(1L, "admin", "password", "ADMIN"));
 
@@ -83,10 +85,10 @@ public class ActionExecutorTest {
      * @throws UserNotFoundException если пользователь не найден
      */
     @Test
+    @DisplayName("Test Execute Choice to Exit Application")
     public void testExecuteChoice_ExitApplication() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
         actionExecutor.executeChoice(0);
 
-        // Проверяем, что метод exitApplication изменил состояние переменной running на false
         assertFalse(actionExecutor.running);
     }
 
@@ -100,6 +102,7 @@ public class ActionExecutorTest {
      * @throws UserNotFoundException если пользователь не найден
      */
     @Test
+    @DisplayName("Test Execute Choice for Invalid Option")
     public void testExecuteChoice_InvalidChoice() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
         ActionExecutor spyExecutor = spy(actionExecutor);
         when(userService.getCurrentUser()).thenReturn(new User(1L, "username", "password", "USER"));

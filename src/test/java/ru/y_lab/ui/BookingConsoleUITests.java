@@ -1,8 +1,11 @@
 package ru.y_lab.ui;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.Booking;
@@ -14,7 +17,6 @@ import ru.y_lab.ui.impl.BookingConsoleUI;
 import ru.y_lab.util.InputReader;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
@@ -39,6 +41,7 @@ public class BookingConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Booking Menu")
     public void testShowBookingMenu() {
         when(userService.getCurrentUser()).thenReturn(new User(1L, "testUser", "password", "USER"));
 
@@ -49,6 +52,7 @@ public class BookingConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show Filter Menu")
     public void testShowFilterMenu() {
         when(userService.getCurrentUser()).thenReturn(new User(1L, "testUser", "password", "USER"));
 
@@ -59,14 +63,7 @@ public class BookingConsoleUITests {
     }
 
     @Test
-    public void testPrintBookings_noBookings() throws UserNotFoundException, ResourceNotFoundException {
-        bookingConsoleUI.printBookings(Collections.emptyList(), userService, resourceService);
-
-        // Проверка вывода на консоль
-        // Например, используйте ByteArrayOutputStream для захвата и проверки вывода
-    }
-
-    @Test
+    @DisplayName("Test Print Bookings With Available Bookings")
     public void testPrintBookings_withBookings() throws UserNotFoundException, ResourceNotFoundException {
         User user = new User(1L, "testUser", "password", "USER");
         when(userService.getUserById(anyLong())).thenReturn(user);
@@ -80,6 +77,7 @@ public class BookingConsoleUITests {
     }
 
     @Test
+    @DisplayName("Test Show User Booking")
     public void testShowUserBooking() throws UserNotFoundException, ResourceNotFoundException {
         User user = new User(1L, "testUser", "password", "USER");
         when(userService.getUserById(anyLong())).thenReturn(user);

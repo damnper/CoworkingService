@@ -1,5 +1,6 @@
 package ru.y_lab.repo;
 
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -93,6 +94,7 @@ public class BookingRepositoryTest {
      * Test case for adding a booking to the repository.
      */
     @Test
+    @DisplayName("Test adding a new booking")
     public void testAddBooking() {
         LocalDateTime startTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime endTime = startTime.plusHours(1);
@@ -116,7 +118,9 @@ public class BookingRepositoryTest {
      * @throws BookingNotFoundException if the booking is not found
      */
     @Test
-    public void testGetBookingById() throws BookingNotFoundException {
+    @DisplayName("Test for retrieving a booking by ID")
+    @SneakyThrows
+    public void testGetBookingById() {
         LocalDateTime startTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime endTime = startTime.plusHours(1);
         Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
@@ -132,6 +136,7 @@ public class BookingRepositoryTest {
      * Test case for retrieving a non-existent booking by ID, expecting an exception.
      */
     @Test
+    @DisplayName("Test for retrieving a non-existent booking by ID")
     public void testGetBookingByIdNotFound() {
         Optional<Booking> optionalBooking = bookingRepository.getBookingById(999L);
 
@@ -144,7 +149,9 @@ public class BookingRepositoryTest {
      * @throws BookingNotFoundException if the booking to update is not found
      */
     @Test
-    public void testUpdateBooking() throws BookingNotFoundException {
+    @DisplayName("Test for updating an existing booking")
+    @SneakyThrows
+    public void testUpdateBooking() {
         LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
 
@@ -176,6 +183,7 @@ public class BookingRepositoryTest {
      * Test case for updating a non-existent booking, expecting an exception.
      */
     @Test
+    @DisplayName("Test for updating a non-existent booking")
     public void testUpdateNonExistentBooking() {
         Booking nonExistentBooking = new Booking(999L, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
         assertThrows(RuntimeException.class, () -> bookingRepository.updateBooking(nonExistentBooking));
@@ -185,6 +193,7 @@ public class BookingRepositoryTest {
      * Test case for deleting an existing booking.
      */
     @Test
+    @DisplayName("Test for deleting an existing booking")
     public void testDeleteBooking() {
         Booking booking = new Booking(null, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
         bookingRepository.addBooking(booking);
@@ -199,6 +208,7 @@ public class BookingRepositoryTest {
      * Test case for deleting a non-existent booking, expecting an exception.
      */
     @Test
+    @DisplayName("Test for deleting a non-existent booking")
     public void testDeleteNonExistentBooking() {
         assertThrows(RuntimeException.class, () -> bookingRepository.deleteBooking(999L));
     }
@@ -207,6 +217,7 @@ public class BookingRepositoryTest {
      * Test case for retrieving all bookings from the repository.
      */
     @Test
+    @DisplayName("Test for retrieving all bookings from the repository")
     public void testGetAllBookings() {
         LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
@@ -242,6 +253,7 @@ public class BookingRepositoryTest {
      * Test case for retrieving bookings by user ID.
      */
     @Test
+    @DisplayName("Test for retrieving bookings by user ID")
     public void testGetBookingsByUserId() {
         LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
@@ -277,6 +289,7 @@ public class BookingRepositoryTest {
      * Test case for retrieving bookings by resource ID.
      */
     @Test
+    @DisplayName("Test for retrieving bookings by resource ID")
     public void testGetBookingsByResourceId() {
         LocalDateTime fixedStartTime = LocalDateTime.of(2024, 6, 29, 11, 18, 10, 307171000);
         LocalDateTime fixedEndTime = fixedStartTime.plusHours(1);
