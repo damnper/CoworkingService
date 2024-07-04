@@ -1,10 +1,10 @@
 package ru.y_lab.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import ru.y_lab.dto.UserDTO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import ru.y_lab.exception.UserNotFoundException;
 
-import java.util.List;
+import java.io.IOException;
 
 /**
  * The UserService interface defines methods for managing users.
@@ -14,60 +14,38 @@ public interface UserService {
     /**
      * Registers a new user.
      *
-     * @param userJson JSON representation of the user to be registered
-     * @return the registered user as a UserDTO
-     * @throws JsonProcessingException if there is an error processing the JSON
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    UserDTO registerUser(String userJson) throws JsonProcessingException;
+    void registerUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Logs in an existing user.
+     * Logs in a user.
      *
-     * @param loginJson JSON representation of the login request
-     * @return the authenticated user as a UserDTO
-     * @throws UserNotFoundException if the user with the specified credentials is not found
-     * @throws JsonProcessingException if there is an error processing the JSON
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    UserDTO loginUser(String loginJson) throws UserNotFoundException, JsonProcessingException;
+    void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Retrieves the currently logged-in user.
+     * Retrieves all users.
      *
-     * @return the current user as a UserDTO
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    UserDTO getCurrentUser();
+    void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Retrieves a list of all registered users.
+     * Retrieves a user by their ID.
      *
-     * @return a list of all registered users as UserDTOs
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    List<UserDTO> viewAllUsers();
+    void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
-    /**
-     * Retrieves a user by their unique identifier.
-     *
-     * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID as a UserDTO
-     */
-    UserDTO getUserById(Long userId);
 
-    /**
-     * Updates the information of an existing user.
-     *
-     * @param userJson JSON representation of the user with updated information
-     * @param currentUser the current authenticated user
-     * @return the updated user as a UserDTO
-     * @throws UserNotFoundException if the user with the specified ID is not found
-     * @throws JsonProcessingException if there is an error processing the JSON
-     */
-    UserDTO updateUser(String userJson, UserDTO currentUser) throws UserNotFoundException, JsonProcessingException;
+    void updateUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
 
-    /**
-     * Deletes a user by their unique identifier.
-     *
-     * @param userId the ID of the user to delete
-     * @throws UserNotFoundException if the user with the specified ID is not found
-     */
-    void deleteUser(Long userId) throws UserNotFoundException;
+
+    void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
 }

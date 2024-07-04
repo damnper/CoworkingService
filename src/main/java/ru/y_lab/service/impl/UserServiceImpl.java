@@ -1,9 +1,8 @@
 package ru.y_lab.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.RegisterRequestDTO;
 import ru.y_lab.dto.UpdateRequestDTO;
@@ -14,9 +13,13 @@ import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.AuthenticationUtil;
-import ru.y_lab.util.ValidationUtil;
 
+import java.io.IOException;
 import java.util.List;
+
+import static ru.y_lab.util.RequestUtil.*;
+import static ru.y_lab.util.ResponseUtil.*;
+import static ru.y_lab.util.ValidationUtil.validateRegisterRequest;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
@@ -25,30 +28,154 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository = new UserRepository();
-    private final AuthenticationUtil authUtil = new AuthenticationUtil(userRepository);
-    private static User currentUser = null;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-//    private final UserMapper userMapper = UserMapper.INSTANCE;
     private final CustomUserMapper userMapper = new CustomUserMapper();
+    private final UserRepository userRepository = new UserRepository();
+    private final AuthenticationUtil authUtil = new AuthenticationUtil(userRepository, userMapper);
+//    private final UserMapper userMapper = UserMapper.INSTANCE;
+
+
+    /**
+     * Registers a new user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void registerUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String requestBody = getRequestBody(req);
+            RegisterRequestDTO loginRequest = parseRequest(requestBody, RegisterRequestDTO.class);
+            UserDTO userDTO = processRegisterUser(loginRequest);
+            sendSuccessResponse(resp, 201, userDTO);
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
+    }
+
+    /**
+     * Logs in a user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String requestBody = getRequestBody(req);
+            LoginRequestDTO loginRequest = parseRequest(requestBody, LoginRequestDTO.class);
+            UserDTO userDTO = authUtil.authenticateUser(loginRequest);
+            createSession(req, userDTO);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (UserNotFoundException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
+    }
+
+    /**
+     * Retrieves all users.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            List<UserDTO> users = userRepository.getAllUsers().stream()
+                    .map(userMapper::toDTO)
+                    .toList();
+            sendSuccessResponse(resp, 200, users);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, null);
+            Long userId = Long.parseLong(req.getParameter("id"));
+            User user = userRepository.getUserById(userId);
+            UserDTO userDTO = userMapper.toDTO(user);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Updates the information of an existing user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void updateUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToUpdate = extractUserIdFromPath(req);
+            if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToUpdate)) throw new SecurityException("Access denied");
+
+            String requestBody = getRequestBody(req);
+            UpdateRequestDTO loginRequest = parseRequest(requestBody, UpdateRequestDTO.class);
+            UserDTO userDTO = processUpdatingUser(currentUser, loginRequest);
+            createSession(req, userDTO);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+    }
+
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToDelete = extractUserIdFromPath(req);
+            if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToDelete)) throw new SecurityException("Access denied");
+
+            processUserDeletion(userIdToDelete, currentUser, req);
+            sendSuccessResponse(resp, 204);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
 
     /**
      * Registers a new user by deserializing the provided JSON input.
      * Validates the username and password format before registering the user.
      *
-     * @param registerRequestJSON JSON representation of the user to be registered
+     * @param request JSON representation of the user to be registered
      * @return the registered user as a UserDTO
      */
-    @Override
-    public UserDTO registerUser(String registerRequestJSON) throws JsonProcessingException {
-        RegisterRequestDTO request = objectMapper.readValue(registerRequestJSON, RegisterRequestDTO.class);
-
-        if (!ValidationUtil.validateUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Invalid username");
-        }
-        if (!ValidationUtil.validatePassword(request.getPassword())) {
-            throw new IllegalArgumentException("Invalid password");
-        }
+    private UserDTO processRegisterUser(RegisterRequestDTO request) {
+        validateRegisterRequest(request);
 
         User user = User.builder()
                 .username(request.getUsername())
@@ -60,61 +187,16 @@ public class UserServiceImpl implements UserService {
         return userMapper.toDTO(registeredUser);
     }
 
-    /**
-     * Logs in a user by authenticating with the provided username and password.
-     * Sets the currentUser static field upon successful authentication.
-     *
-     * @param loginRequestJSON JSON representation of the login request
-     * @return the authenticated user as a UserDTO
-     */
-    @Override
-    public UserDTO loginUser(String loginRequestJSON) throws UserNotFoundException, JsonProcessingException {
-        LoginRequestDTO loginRequest = objectMapper.readValue(loginRequestJSON, LoginRequestDTO.class);
-
-        if (authUtil.authenticate(loginRequest.getUsername(), loginRequest.getPassword())) {
-            currentUser = userRepository.getUserByUsername(loginRequest.getUsername());
-            return userMapper.toDTO(currentUser);
-        } else {
-            throw new UserNotFoundException("Invalid credentials");
-        }
-    }
 
     /**
-     * Retrieves a list of all users.
+     * Processes the update of an existing user.
      *
-     * @return a list of all registered users as UserDTOs
-     */
-    @Override
-    public List<UserDTO> viewAllUsers() {
-        List<User> users = userRepository.getAllUsers();
-        return users.stream().map(userMapper::toDTO).toList();
-    }
-
-    /**
-     * Retrieves a user by their unique identifier.
-     *
-     * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID as a UserDTO
-     */
-    @Override
-    @SneakyThrows
-    public UserDTO getUserById(Long userId) {
-        User user = userRepository.getUserById(userId);
-        return userMapper.toDTO(user);
-    }
-
-    /**
-     * Updates the information of an existing user.
-     *
-     * @param updateRequestJSON JSON representation of the user with updated information
      * @param currentUser the current authenticated user
+     * @param request     the UpdateRequestDTO containing the updated user information
      * @return the updated user as a UserDTO
-     * @throws UserNotFoundException if the user with the specified ID is not found
-     * @throws JsonProcessingException if there is an error processing the JSON
+     * @throws UserNotFoundException if the user is not found
      */
-    @Override
-    public UserDTO updateUser(String updateRequestJSON, UserDTO currentUser) throws UserNotFoundException, JsonProcessingException {
-        UpdateRequestDTO request = objectMapper.readValue(updateRequestJSON, UpdateRequestDTO.class);
+    private UserDTO processUpdatingUser(UserDTO currentUser, UpdateRequestDTO request) throws UserNotFoundException {
         User user = userRepository.getUserById(currentUser.getId());
         user.setUsername(request.getUsername());
         user.setPassword(request.getPassword());
@@ -122,24 +204,17 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Deletes a user by their unique identifier.
+     * Processes the deletion of a user.
      *
-     * @param userId the ID of the user to delete
-     * @throws UserNotFoundException if the user with the specified ID is not found
+     * @param userIdToDelete the ID of the user to delete
+     * @param currentUser    the current authenticated user
+     * @param req            the HttpServletRequest object
+     * @throws UserNotFoundException  if the user is not found
      */
-    @Override
-    public void deleteUser(Long userId) throws UserNotFoundException {
-        userRepository.deleteUser(userId);
+    private void processUserDeletion(Long userIdToDelete, UserDTO currentUser, HttpServletRequest req) throws UserNotFoundException {
+        userRepository.deleteUser(userIdToDelete);
+        if (currentUser.getId().equals(userIdToDelete)) {
+            req.getSession().invalidate();
+        }
     }
-
-    /**
-     * Retrieves the currently logged-in user.
-     *
-     * @return the current user as a UserDTO, or null if no user is currently logged in
-     */
-    @Override
-    public UserDTO getCurrentUser() {
-        return currentUser != null ? userMapper.toDTO(currentUser) : null;
-    }
-
 }

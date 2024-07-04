@@ -1,5 +1,7 @@
 package ru.y_lab.util;
 
+import ru.y_lab.dto.RegisterRequestDTO;
+
 import java.util.regex.Pattern;
 
 /**
@@ -26,5 +28,19 @@ public class ValidationUtil {
      */
     public static boolean validatePassword(String password) {
         return PASSWORD_PATTERN.matcher(password).matches();
+    }
+
+    /**
+     * Validates the RegisterRequestDTO for username and password.
+     *
+     * @param request the RegisterRequestDTO to validate
+     */
+    public static void validateRegisterRequest(RegisterRequestDTO request) {
+        if (!validateUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Invalid username");
+        }
+        if (!validatePassword(request.getPassword())) {
+            throw new IllegalArgumentException("Invalid password");
+        }
     }
 }
