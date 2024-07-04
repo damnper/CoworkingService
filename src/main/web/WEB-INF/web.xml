@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+    <!-- Config for UserServlet -->
+    <servlet>
+        <servlet-name>UserServlet</servlet-name>
+        <servlet-class>ru.y_lab.servlet.UserServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>UserServlet</servlet-name>
+        <url-pattern>/users/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Config for ResourceServlet -->
+    <servlet>
+        <servlet-name>ResourceServlet</servlet-name>
+        <servlet-class>ru.y_lab.servlet.ResourceServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ResourceServlet</servlet-name>
+        <url-pattern>/resources/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Config for BookingServlet -->
+    <servlet>
+        <servlet-name>BookingServlet</servlet-name>
+        <servlet-class>ru.y_lab.servlet.BookingServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>BookingServlet</servlet-name>
+        <url-pattern>/bookings/*</url-pattern>
+    </servlet-mapping>
+</web-app>

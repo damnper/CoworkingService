@@ -1,17 +1,22 @@
 package ru.y_lab.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import ru.y_lab.dto.LoginRequestDTO;
+import ru.y_lab.dto.RegisterRequestDTO;
+import ru.y_lab.dto.UpdateRequestDTO;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomUserMapper;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.AuthenticationUtil;
-import ru.y_lab.util.InputReader;
 import ru.y_lab.util.ValidationUtil;
 
 import java.util.List;
-
-import static ru.y_lab.constants.ColorTextCodes.*;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
@@ -20,108 +25,121 @@ import static ru.y_lab.constants.ColorTextCodes.*;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final InputReader inputReader;
-    private final UserRepository userRepository;
-    private final AuthenticationUtil authUtil;
+    private final UserRepository userRepository = new UserRepository();
+    private final AuthenticationUtil authUtil = new AuthenticationUtil(userRepository);
     private static User currentUser = null;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+//    private final UserMapper userMapper = UserMapper.INSTANCE;
+    private final CustomUserMapper userMapper = new CustomUserMapper();
 
     /**
-     * Registers a new user by taking user input for username and password.
+     * Registers a new user by deserializing the provided JSON input.
      * Validates the username and password format before registering the user.
-     * @return the registered user, or null if registration fails
+     *
+     * @param registerRequestJSON JSON representation of the user to be registered
+     * @return the registered user as a UserDTO
      */
     @Override
-    public User registerUser() {
-        System.out.print(CYAN + "Enter username: " + RESET);
-        String username = inputReader.readLine();
-        if (!ValidationUtil.validateUsername(username)) {
-            System.out.println(RED + "Invalid username. Username must be 3 to 15 characters long and can only contain letters, numbers, and underscores. Please try again." + RESET);
-            return null;
-        }
+    public UserDTO registerUser(String registerRequestJSON) throws JsonProcessingException {
+        RegisterRequestDTO request = objectMapper.readValue(registerRequestJSON, RegisterRequestDTO.class);
 
-        System.out.print(CYAN + "Enter password: " + RESET);
-        String password = inputReader.readLine();
-        if (!ValidationUtil.validatePassword(password)) {
-            System.out.println(RED + "Invalid password. Password must be 6 to 20 characters long and can only contain letters, numbers, and the special characters @, #, and %. Please try again." + RESET);
-            return null;
+        if (!ValidationUtil.validateUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Invalid username");
+        }
+        if (!ValidationUtil.validatePassword(request.getPassword())) {
+            throw new IllegalArgumentException("Invalid password");
         }
 
         User user = User.builder()
-                .username(username)
-                .password(password)
+                .username(request.getUsername())
+                .password(request.getPassword())
                 .role("USER")
                 .build();
 
         User registeredUser = userRepository.addUser(user);
-        System.out.println(GREEN + "\nUser registered successfully!" + RESET);
-        return registeredUser;
+        return userMapper.toDTO(registeredUser);
     }
 
     /**
      * Logs in a user by authenticating with the provided username and password.
      * Sets the currentUser static field upon successful authentication.
-     * @throws UserNotFoundException if the user with the provided username is not found
+     *
+     * @param loginRequestJSON JSON representation of the login request
+     * @return the authenticated user as a UserDTO
      */
     @Override
-    public void loginUser() throws UserNotFoundException {
-        System.out.print(CYAN + "Enter username: " + RESET);
-        String username = inputReader.readLine();
-        System.out.print(CYAN + "Enter password: " + RESET);
-        String password = inputReader.readLine();
+    public UserDTO loginUser(String loginRequestJSON) throws UserNotFoundException, JsonProcessingException {
+        LoginRequestDTO loginRequest = objectMapper.readValue(loginRequestJSON, LoginRequestDTO.class);
 
-        if (authUtil.authenticate(username, password)) {
-            currentUser = userRepository.getUserByUsername(username);
-            System.out.println(GREEN + "\nLogin successful!" + RESET);
+        if (authUtil.authenticate(loginRequest.getUsername(), loginRequest.getPassword())) {
+            currentUser = userRepository.getUserByUsername(loginRequest.getUsername());
+            return userMapper.toDTO(currentUser);
         } else {
-            System.out.println(RED + "\nInvalid credentials. Please try again." + RESET);
+            throw new UserNotFoundException("Invalid credentials");
         }
     }
 
     /**
-     * Displays a list of all users retrieved from the user repository.
-     * If no users are found, it prints a message indicating that no users are available.
-     * Otherwise, it prints the ID and username of each user.
+     * Retrieves a list of all users.
+     *
+     * @return a list of all registered users as UserDTOs
      */
     @Override
-    public void viewAllUsers() {
+    public List<UserDTO> viewAllUsers() {
         List<User> users = userRepository.getAllUsers();
-        if (users.isEmpty()) {
-            System.out.println(YELLOW + "\nNo users available." + RESET);
-        } else {
-            System.out.println(BLUE + "\n--- List of All Users ---\n" + RESET);
-            System.out.println(CYAN + "----------------------------" + RESET);
-            for (User user : users) {
-                System.out.println(PURPLE + user.getId() + " " + user.getUsername() + RESET);
-                System.out.println(CYAN + "----------------------------" + RESET);
-            }
-        }
+        return users.stream().map(userMapper::toDTO).toList();
     }
 
     /**
      * Retrieves a user by their unique identifier.
+     *
      * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID
-     * @throws UserNotFoundException if the user with the given ID is not found
+     * @return the user with the specified ID as a UserDTO
      */
     @Override
-    public User getUserById(Long userId) throws UserNotFoundException {
-        return userRepository.getUserById(userId);
+    @SneakyThrows
+    public UserDTO getUserById(Long userId) {
+        User user = userRepository.getUserById(userId);
+        return userMapper.toDTO(user);
+    }
+
+    /**
+     * Updates the information of an existing user.
+     *
+     * @param updateRequestJSON JSON representation of the user with updated information
+     * @param currentUser the current authenticated user
+     * @return the updated user as a UserDTO
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     * @throws JsonProcessingException if there is an error processing the JSON
+     */
+    @Override
+    public UserDTO updateUser(String updateRequestJSON, UserDTO currentUser) throws UserNotFoundException, JsonProcessingException {
+        UpdateRequestDTO request = objectMapper.readValue(updateRequestJSON, UpdateRequestDTO.class);
+        User user = userRepository.getUserById(currentUser.getId());
+        user.setUsername(request.getUsername());
+        user.setPassword(request.getPassword());
+        return userMapper.toDTO(userRepository.updateUser(user));
+    }
+
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param userId the ID of the user to delete
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     */
+    @Override
+    public void deleteUser(Long userId) throws UserNotFoundException {
+        userRepository.deleteUser(userId);
     }
 
     /**
      * Retrieves the currently logged-in user.
-     * @return the current user, or null if no user is currently logged in
+     *
+     * @return the current user as a UserDTO, or null if no user is currently logged in
      */
     @Override
-    public User getCurrentUser() {
-        return currentUser;
+    public UserDTO getCurrentUser() {
+        return currentUser != null ? userMapper.toDTO(currentUser) : null;
     }
 
-    /**
-     * Sets the current logged-in user.
-     * @param user the user to set as the current user
-     */
-    public void setCurrentUser(User user) {
-        currentUser = user;
-    }
 }

@@ -1,7 +1,10 @@
 package ru.y_lab.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
-import ru.y_lab.model.User;
+
+import java.util.List;
 
 /**
  * The UserService interface defines methods for managing users.
@@ -10,32 +13,61 @@ public interface UserService {
 
     /**
      * Registers a new user.
-     * @return the registered user
+     *
+     * @param userJson JSON representation of the user to be registered
+     * @return the registered user as a UserDTO
+     * @throws JsonProcessingException if there is an error processing the JSON
      */
-    User registerUser();
+    UserDTO registerUser(String userJson) throws JsonProcessingException;
 
     /**
      * Logs in an existing user.
-     * @throws UserNotFoundException if the user is not found
+     *
+     * @param loginJson JSON representation of the login request
+     * @return the authenticated user as a UserDTO
+     * @throws UserNotFoundException if the user with the specified credentials is not found
+     * @throws JsonProcessingException if there is an error processing the JSON
      */
-    void loginUser() throws UserNotFoundException;
+    UserDTO loginUser(String loginJson) throws UserNotFoundException, JsonProcessingException;
 
     /**
      * Retrieves the currently logged-in user.
-     * @return the current user
+     *
+     * @return the current user as a UserDTO
      */
-    User getCurrentUser();
+    UserDTO getCurrentUser();
 
     /**
-     * Displays information about all registered users.
+     * Retrieves a list of all registered users.
+     *
+     * @return a list of all registered users as UserDTOs
      */
-    void viewAllUsers();
+    List<UserDTO> viewAllUsers();
 
     /**
      * Retrieves a user by their unique identifier.
+     *
      * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID
-     * @throws UserNotFoundException if the user with the given ID is not found
+     * @return the user with the specified ID as a UserDTO
      */
-    User getUserById(Long userId) throws UserNotFoundException;
+    UserDTO getUserById(Long userId);
+
+    /**
+     * Updates the information of an existing user.
+     *
+     * @param userJson JSON representation of the user with updated information
+     * @param currentUser the current authenticated user
+     * @return the updated user as a UserDTO
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     * @throws JsonProcessingException if there is an error processing the JSON
+     */
+    UserDTO updateUser(String userJson, UserDTO currentUser) throws UserNotFoundException, JsonProcessingException;
+
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param userId the ID of the user to delete
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     */
+    void deleteUser(Long userId) throws UserNotFoundException;
 }
