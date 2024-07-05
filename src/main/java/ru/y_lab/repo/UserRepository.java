@@ -8,6 +8,7 @@ import ru.y_lab.model.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The UserRepository class provides methods to manage users.
@@ -53,7 +54,7 @@ public class UserRepository {
      * @return the user with the specified ID
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public User getUserById(Long id) throws UserNotFoundException {
+    public Optional<User> getUserById(Long id) throws UserNotFoundException {
         String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -61,7 +62,8 @@ public class UserRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapRowToUser(rs);
+                    User user = mapRowToUser(rs);
+                    return Optional.of(user);
                 } else {
                     throw new UserNotFoundException("User with ID " + id + " not found");
                 }
@@ -112,10 +114,7 @@ public class UserRepository {
             updatePs.setString(3, user.getRole());
             updatePs.setLong(4, user.getId());
 
-            int rowsAffected = updatePs.executeUpdate();
-            if (rowsAffected == 0) {
-                throw new UserNotFoundException("User with ID " + user.getId() + " not found");
-            }
+            updatePs.executeUpdate();
 
             selectPs.setLong(1, user.getId());
             try (ResultSet rs = selectPs.executeQuery()) {

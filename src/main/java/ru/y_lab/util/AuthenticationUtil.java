@@ -1,7 +1,6 @@
 package ru.y_lab.util;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -12,16 +11,14 @@ import ru.y_lab.mapper.CustomUserMapper;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 
-import java.io.IOException;
-
 /**
  * Utility class for handling authentication and authorization.
  */
 @RequiredArgsConstructor
 public class AuthenticationUtil {
 
-    private final UserRepository userRepository;
-    private final CustomUserMapper userMapper;
+    private final UserRepository userRepository = new UserRepository();
+    private final CustomUserMapper userMapper = new CustomUserMapper();
 
     /**
      * Authenticates the user.
@@ -31,8 +28,8 @@ public class AuthenticationUtil {
      * @throws UserNotFoundException if authentication fails
      */
     public UserDTO authenticateUser(LoginRequestDTO loginRequest) throws UserNotFoundException {
-        if (authenticate(loginRequest.getUsername(), loginRequest.getPassword())) {
-            User currentUser = userRepository.getUserByUsername(loginRequest.getUsername());
+        if (authenticate(loginRequest.username(), loginRequest.password())) {
+            User currentUser = userRepository.getUserByUsername(loginRequest.username());
             return userMapper.toDTO(currentUser);
         } else {
             throw new IllegalArgumentException("Invalid credentials");
@@ -43,10 +40,8 @@ public class AuthenticationUtil {
      * Authenticates the user and checks their role if required.
      *
      * @param req the HttpServletRequest object
-     * @param resp the HttpServletResponse object
      * @param requiredRole the required role for authorization (can be null if no role check is needed)
      * @return the authenticated UserDTO or null if authentication/authorization fails
-     * @throws IOException if an input or output exception occurred
      */
     public UserDTO authenticateAndAuthorize(HttpServletRequest req, String requiredRole) {
         HttpSession session = req.getSession(false);
@@ -56,7 +51,7 @@ public class AuthenticationUtil {
 
         UserDTO currentUser = (UserDTO) session.getAttribute("currentUser");
 
-        if (requiredRole != null && !requiredRole.equals(currentUser.getRole())) {
+        if (requiredRole != null && !requiredRole.equals(currentUser.role())) {
             throw new SecurityException("Access denied");
         }
 
@@ -75,7 +70,7 @@ public class AuthenticationUtil {
      * @throws SecurityException if the user is not authorized to perform the action
      */
     public boolean isUserAuthorizedToAction(UserDTO currentUser, Long userIdFromPath) {
-        if (!currentUser.getRole().equals("ADMIN") && !currentUser.getId().equals(userIdFromPath)) {
+        if (!currentUser.role().equals("ADMIN") && !currentUser.id().equals(userIdFromPath)) {
             throw new SecurityException("Access denied");
         }
         return true;

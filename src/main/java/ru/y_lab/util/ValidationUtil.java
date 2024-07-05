@@ -36,10 +36,10 @@ public class ValidationUtil {
      * @param request the RegisterRequestDTO to validate
      */
     public static void validateRegisterRequest(RegisterRequestDTO request) {
-        if (!validateUsername(request.getUsername())) {
+        if (!validateUsername(request.username())) {
             throw new IllegalArgumentException("Invalid username");
         }
-        if (!validatePassword(request.getPassword())) {
+        if (!validatePassword(request.password())) {
             throw new IllegalArgumentException("Invalid password");
         }
     }

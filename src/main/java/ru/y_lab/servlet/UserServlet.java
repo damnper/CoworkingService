@@ -44,10 +44,18 @@ public class UserServlet extends HttpServlet {
     @SneakyThrows
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
         String path = req.getPathInfo();
-        switch (path) {
-            case "/all" -> userService.getAllUsers(req, resp);
-            case "/{id}" -> userService.getUserById(req, resp);
-            default -> sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid POST endpoint");
+
+        if (path == null) {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Path cannot be null");
+            return;
+        }
+
+        if (path.equals("/all")) {
+            userService.getAllUsers(req, resp);
+        } else if (path.matches("/\\d+")) {
+            userService.getUserById(req, resp);
+        } else {
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid GET endpoint");
         }
     }
 

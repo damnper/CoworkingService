@@ -28,6 +28,14 @@ public interface UserService {
     void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
+     * Retrieves a user by their ID.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+
+    /**
      * Retrieves all users.
      *
      * @param req  the HttpServletRequest object
@@ -36,16 +44,18 @@ public interface UserService {
     void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Retrieves a user by their ID.
+     * Updates the information of an existing user.
      *
      * @param req  the HttpServletRequest object
      * @param resp the HttpServletResponse object
      */
-    void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
-
-
     void updateUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
 
-
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
     void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
 }

@@ -44,24 +44,26 @@ public class RequestUtil {
     }
 
     /**
-     * Extracts the user ID from the request path.
+     * Extracts the ID from the request path.
      * <p>
-     * This method extracts the user ID from the path info of the HttpServletRequest.
-     * If the path is invalid or the user ID format is incorrect, an exception is thrown.
+     * This method extracts the ID from the path info of the HttpServletRequest.
+     * If the path is invalid or the ID format is incorrect, an exception is thrown.
      *
      * @param req the HttpServletRequest object
-     * @return the extracted user ID
+     * @return the extracted ID
      * @throws IllegalArgumentException if the path is invalid
-     * @throws NumberFormatException if the user ID format is incorrect
+     * @throws NumberFormatException if the ID format is incorrect
      */
-    public static Long extractUserIdFromPath(HttpServletRequest req) {
+    public static Long extractIdFromPath(HttpServletRequest req) {
         String path = req.getPathInfo();
-        if (path == null || !path.startsWith("/")) throw new IllegalArgumentException("Invalid user ID");
+        if (path == null || !path.startsWith("/")) {
+            throw new IllegalArgumentException("Invalid ID in path");
+        }
 
         try {
             return Long.parseLong(path.substring(1));
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Invalid user ID format");
+            throw new NumberFormatException("Invalid ID format");
         }
     }
 }

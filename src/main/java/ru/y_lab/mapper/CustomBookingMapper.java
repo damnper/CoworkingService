@@ -11,11 +11,11 @@ public class CustomBookingMapper {
         }
 
         return Booking.builder()
-                .id(bookingDTO.getId())
-                .userId(bookingDTO.getUserId())
-                .resourceId(bookingDTO.getResourceId())
-                .startTime(bookingDTO.getStartTime())
-                .endTime(bookingDTO.getEndTime())
+                .id(bookingDTO.id())
+                .userId(bookingDTO.userId())
+                .resourceId(bookingDTO.resourceId())
+                .startTime(bookingDTO.startTime())
+                .endTime(bookingDTO.endTime())
                 .build();
     }
 
@@ -24,13 +24,12 @@ public class CustomBookingMapper {
             return null;
         }
 
-        BookingDTO bookingDTO = new BookingDTO();
-        bookingDTO.setId(booking.getId());
-        bookingDTO.setUserId(booking.getUserId());
-        bookingDTO.setResourceId(booking.getResourceId());
-        bookingDTO.setStartTime(booking.getStartTime());
-        bookingDTO.setEndTime(booking.getEndTime());
-
-        return bookingDTO;
+        return new BookingDTO(
+                booking.getId(),
+                booking.getUserId(),
+                booking.getResourceId(),
+                booking.getStartTime(),
+                booking.getEndTime()
+        );
     }
 }
