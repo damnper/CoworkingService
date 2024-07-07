@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.impl.ResourceServiceImpl;
 
@@ -13,6 +14,7 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 /**
  * ResourceServlet handles HTTP requests for resource-related operations.
  */
+@Loggable
 public class ResourceServlet extends HttpServlet {
 
     private final ResourceService resourceService = new ResourceServiceImpl();

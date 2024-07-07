@@ -91,7 +91,7 @@ public class ResourceRepositoryTest {
      */
     @Test
     @DisplayName("Test Adding a New Resource")
-    public void testAddResource(){
+    public void testAddResource() throws ResourceNotFoundException {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
 
@@ -108,7 +108,7 @@ public class ResourceRepositoryTest {
      */
     @Test
     @DisplayName("Test Retrieving a Resource by ID")
-    public void testGetResourceById() {
+    public void testGetResourceById() throws ResourceNotFoundException {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
         resourceRepository.addResource(resource);
 
@@ -147,11 +147,11 @@ public class ResourceRepositoryTest {
     @DisplayName("Test Deleting an Existing Resource")
     public void testDeleteResource() throws ResourceNotFoundException {
         Resource resource = new Resource(null, 1L, "Black room", "Workspace");
-        resourceRepository.addResource(resource);
+        Resource savedResource = resourceRepository.addResource(resource);
 
-        resourceRepository.deleteResource(resource.getId());
+        resourceRepository.deleteResource(savedResource.getId());
 
-        Optional<Resource> optionalResource = resourceRepository.getResourceById(resource.getId());
+        Optional<Resource> optionalResource = resourceRepository.getResourceById(savedResource.getId());
         assertTrue(optionalResource.isEmpty(), "Resource should have been deleted");
 
     }

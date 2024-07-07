@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.service.UserService;
 import ru.y_lab.service.impl.UserServiceImpl;
 
@@ -14,6 +15,7 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 /**
  * UserServlet handles HTTP requests for user-related operations.
  */
+@Loggable
 public class UserServlet extends HttpServlet {
 
     private final UserService userService = new UserServiceImpl();

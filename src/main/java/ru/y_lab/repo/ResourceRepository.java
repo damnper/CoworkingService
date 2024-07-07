@@ -62,7 +62,7 @@ public class ResourceRepository {
                     Resource resource = mapRowToResource(rs);
                     return Optional.of(resource);
                 } else {
-                    throw new ResourceNotFoundException("Resource with ID " + id + " not found");
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {

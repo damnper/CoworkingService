@@ -3,6 +3,7 @@ package ru.y_lab.servlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.service.BookingService;
 import ru.y_lab.service.impl.BookingServiceImpl;
 
@@ -15,6 +16,7 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 /**
  * BookingServlet handles HTTP requests for booking-related operations.
  */
+@Loggable
 public class BookingServlet extends HttpServlet {
 
     private final BookingService bookingService = new BookingServiceImpl();

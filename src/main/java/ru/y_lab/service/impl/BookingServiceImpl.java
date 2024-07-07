@@ -3,6 +3,7 @@ package ru.y_lab.service.impl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.*;
 import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.BookingNotFoundException;
@@ -33,12 +34,13 @@ import static ru.y_lab.util.RequestUtil.getRequestBody;
 import static ru.y_lab.util.RequestUtil.parseRequest;
 import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 import static ru.y_lab.util.ResponseUtil.sendSuccessResponse;
-import static ru.y_lab.util.ValidationUtil.validateDateTime;
+import static ru.y_lab.util.ValidationUtil.*;
 
 /**
  * The BookingServiceImpl class provides an implementation of the BookingService interface.
  * It interacts with the BookingRepository to perform CRUD operations.
  */
+@Loggable
 public class BookingServiceImpl implements BookingService {
 
     private final AuthenticationUtil authUtil = new AuthenticationUtil();
@@ -61,8 +63,9 @@ public class BookingServiceImpl implements BookingService {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
             String requestBody = getRequestBody(req);
-            AddBookingRequestDTO addResourceRequest = parseRequest(requestBody, AddBookingRequestDTO.class);
-            BookingDTO bookingDTO = processAddBooking(addResourceRequest, currentUser);
+            AddBookingRequestDTO requestDTO = parseRequest(requestBody, AddBookingRequestDTO.class);
+            validateAddBookingRequest(requestDTO);
+            BookingDTO bookingDTO = processAddBooking(requestDTO, currentUser);
             sendSuccessResponse(resp, 201, bookingDTO);
         } catch (SecurityException e) {
             sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
@@ -284,8 +287,9 @@ public class BookingServiceImpl implements BookingService {
                     .orElseThrow(() -> new BookingNotFoundException("Booking not found by ID: " + bookingIdToUpdate));
 
             if (!authUtil.isUserAuthorizedToAction(currentUser, booking.getUserId())) throw new SecurityException("Access denied");
-            UpdateBookingRequestDTO updateRequest = parseRequest(requestBody, UpdateBookingRequestDTO.class);
-            BookingDTO bookingDTO = processUpdatingBooking(bookingIdToUpdate, updateRequest, booking);
+            UpdateBookingRequestDTO requestDTO = parseRequest(requestBody, UpdateBookingRequestDTO.class);
+            validateUpdateBookingRequest(requestDTO);
+            BookingDTO bookingDTO = processUpdatingBooking(bookingIdToUpdate, requestDTO, booking);
             sendSuccessResponse(resp, 200, bookingDTO);
         } catch (SecurityException e) {
             sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());

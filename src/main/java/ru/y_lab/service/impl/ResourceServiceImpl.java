@@ -3,6 +3,7 @@ package ru.y_lab.service.impl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.*;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
@@ -21,19 +22,21 @@ import static jakarta.servlet.http.HttpServletResponse.*;
 import static ru.y_lab.util.RequestUtil.*;
 import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 import static ru.y_lab.util.ResponseUtil.sendSuccessResponse;
+import static ru.y_lab.util.ValidationUtil.validateAddResourceRequest;
+import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
 
 /**
  * The ResourceServiceImpl class provides an implementation of the ResourceService interface.
  * It interacts with the ResourceRepository to perform CRUD operations.
  */
 @RequiredArgsConstructor
+@Loggable
 public class ResourceServiceImpl implements ResourceService {
 
     private final AuthenticationUtil authUtil = new AuthenticationUtil();
     private final CustomResourceMapper resourceMapper = new CustomResourceMapper();
     private final ResourceRepository resourceRepository = new ResourceRepository();
     private final UserRepository userRepository = new UserRepository();
-
 
     /**
      * Adds a new resource.
@@ -47,8 +50,9 @@ public class ResourceServiceImpl implements ResourceService {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
             String requestBody = getRequestBody(req);
-            AddResourceRequestDTO addResourceRequest = parseRequest(requestBody, AddResourceRequestDTO.class);
-            ResourceDTO resourceDTO = processAddResource(addResourceRequest, currentUser);
+            AddResourceRequestDTO requestDTO = parseRequest(requestBody, AddResourceRequestDTO.class);
+            validateAddResourceRequest(requestDTO);
+            ResourceDTO resourceDTO = processAddResource(requestDTO, currentUser);
             sendSuccessResponse(resp, 201, resourceDTO);
         } catch (SecurityException e) {
             sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
@@ -130,10 +134,10 @@ public class ResourceServiceImpl implements ResourceService {
             Long resourceIdToUpdate = Long.valueOf(req.getParameter("resourceId"));
             Resource resource = resourceRepository.getResourceById(resourceIdToUpdate).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + resourceIdToUpdate));
             if (!authUtil.isUserAuthorizedToAction(currentUser, resource.getUserId())) throw new SecurityException("Access denied");
-
             String requestBody = getRequestBody(req);
-            UpdateResourceRequestDTO updateRequest = parseRequest(requestBody, UpdateResourceRequestDTO.class);
-            ResourceDTO resourceDTO = processUpdatingResource(resourceIdToUpdate, updateRequest, resource);
+            UpdateResourceRequestDTO requestDTO = parseRequest(requestBody, UpdateResourceRequestDTO.class);
+            validateUpdateResourceRequest(requestDTO);
+            ResourceDTO resourceDTO = processUpdatingResource(resourceIdToUpdate, requestDTO, resource);
             sendSuccessResponse(resp, 200, resourceDTO);
         } catch (ResourceNotFoundException e) {
             sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());

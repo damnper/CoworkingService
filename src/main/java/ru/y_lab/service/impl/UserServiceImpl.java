@@ -3,6 +3,7 @@ package ru.y_lab.service.impl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.RegisterRequestDTO;
 import ru.y_lab.dto.UpdateUserRequestDTO;
@@ -18,15 +19,17 @@ import java.io.IOException;
 import java.util.List;
 
 import static jakarta.servlet.http.HttpServletResponse.*;
-import static ru.y_lab.util.RequestUtil.*;
+import static ru.y_lab.util.RequestUtil.getRequestBody;
+import static ru.y_lab.util.RequestUtil.parseRequest;
 import static ru.y_lab.util.ResponseUtil.*;
-import static ru.y_lab.util.ValidationUtil.validateRegisterRequest;
+import static ru.y_lab.util.ValidationUtil.*;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
  * It interacts with the UserRepository to perform CRUD operations.
  */
 @RequiredArgsConstructor
+@Loggable
 public class UserServiceImpl implements UserService {
 
     private final CustomUserMapper userMapper = new CustomUserMapper();
@@ -64,6 +67,7 @@ public class UserServiceImpl implements UserService {
         try {
             String requestBody = getRequestBody(req);
             LoginRequestDTO loginRequest = parseRequest(requestBody, LoginRequestDTO.class);
+            validateLoginRequest(loginRequest);
             UserDTO userDTO = authUtil.authenticateUser(loginRequest);
             createSession(req, userDTO);
             sendSuccessResponse(resp, 200, userDTO);
@@ -137,6 +141,7 @@ public class UserServiceImpl implements UserService {
 
             String requestBody = getRequestBody(req);
             UpdateUserRequestDTO loginRequest = parseRequest(requestBody, UpdateUserRequestDTO.class);
+            validateUpdateUserRequest(loginRequest);
             UserDTO userDTO = processUpdatingUser(userIdToUpdate, loginRequest);
             sendSuccessResponse(resp, 200, userDTO);
         } catch (SecurityException e) {

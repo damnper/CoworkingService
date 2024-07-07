@@ -228,7 +228,11 @@ public class BookingRepositoryTest {
         Booking savedBooking1 = bookingRepository.saveBooking(booking1);
         Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
-        List<Booking> allBookings = bookingRepository.getAllBookings();
+        Optional<List<Booking>> allBookingsOpt = bookingRepository.getAllBookings();
+
+        assertTrue(allBookingsOpt.isPresent(), "The list of bookings should not be empty.");
+
+        List<Booking> allBookings = allBookingsOpt.get();
 
         assertEquals(2, allBookings.size(), "The number of bookings retrieved does not match the expected size.");
 
@@ -264,26 +268,32 @@ public class BookingRepositoryTest {
         Booking savedBooking1 = bookingRepository.saveBooking(booking1);
         Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
-        List<Booking> allBookings = bookingRepository.getAllBookings();
+        Optional<List<Booking>> bookingsByUserIdOpt = bookingRepository.getBookingsByUserId(1L);
 
-        assertEquals(2, allBookings.size());
+        assertTrue(bookingsByUserIdOpt.isPresent(), "The list of bookings should not be empty.");
 
-        assertTrue(allBookings.stream().anyMatch(b ->
-                b.getId().equals(savedBooking1.getId()) &&
-                        b.getUserId().equals(booking1.getUserId()) &&
-                        b.getResourceId().equals(booking1.getResourceId()) &&
-                        b.getStartTime().equals(booking1.getStartTime()) &&
-                        b.getEndTime().equals(booking1.getEndTime())
-        ), "Booking1 is not present in the retrieved bookings.");
+        List<Booking> bookingsByUserId = bookingsByUserIdOpt.get();
 
-        assertTrue(allBookings.stream().anyMatch(b ->
-                b.getId().equals(savedBooking2.getId()) &&
-                        b.getUserId().equals(booking2.getUserId()) &&
-                        b.getResourceId().equals(booking2.getResourceId()) &&
-                        b.getStartTime().equals(booking2.getStartTime()) &&
-                        b.getEndTime().equals(booking2.getEndTime())
-        ), "Booking2 is not present in the retrieved bookings.");
+        assertEquals(2, bookingsByUserId.size(), "The number of bookings retrieved does not match the expected size.");
+
+        assertAll("Verify all retrieved bookings for user ID 1",
+                () -> assertTrue(bookingsByUserId.stream().anyMatch(b ->
+                        b.getId().equals(savedBooking1.getId()) &&
+                                b.getUserId().equals(booking1.getUserId()) &&
+                                b.getResourceId().equals(booking1.getResourceId()) &&
+                                b.getStartTime().equals(booking1.getStartTime()) &&
+                                b.getEndTime().equals(booking1.getEndTime())
+                ), "Booking1 is not present in the retrieved bookings."),
+                () -> assertTrue(bookingsByUserId.stream().anyMatch(b ->
+                        b.getId().equals(savedBooking2.getId()) &&
+                                b.getUserId().equals(booking2.getUserId()) &&
+                                b.getResourceId().equals(booking2.getResourceId()) &&
+                                b.getStartTime().equals(booking2.getStartTime()) &&
+                                b.getEndTime().equals(booking2.getEndTime())
+                ), "Booking2 is not present in the retrieved bookings.")
+        );
     }
+
 
     /**
      * Test case for retrieving bookings by resource ID.
@@ -300,24 +310,29 @@ public class BookingRepositoryTest {
         Booking savedBooking1 = bookingRepository.saveBooking(booking1);
         Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
-        List<Booking> allBookings = bookingRepository.getBookingsByResourceId(1L);
+        Optional<List<Booking>> bookingsByResourceIdOpt = bookingRepository.getBookingsByResourceId(1L);
 
-        assertEquals(2, allBookings.size());
+        assertTrue(bookingsByResourceIdOpt.isPresent(), "The list of bookings should not be empty.");
 
-        assertTrue(allBookings.stream().anyMatch(b ->
-                b.getId().equals(savedBooking1.getId()) &&
-                        b.getUserId().equals(booking1.getUserId()) &&
-                        b.getResourceId().equals(booking1.getResourceId()) &&
-                        b.getStartTime().equals(booking1.getStartTime()) &&
-                        b.getEndTime().equals(booking1.getEndTime())
-        ), "Booking1 is not present in the retrieved bookings.");
+        List<Booking> bookingsByResourceId = bookingsByResourceIdOpt.get();
 
-        assertTrue(allBookings.stream().anyMatch(b ->
-                b.getId().equals(savedBooking2.getId()) &&
-                        b.getUserId().equals(booking2.getUserId()) &&
-                        b.getResourceId().equals(booking2.getResourceId()) &&
-                        b.getStartTime().equals(booking2.getStartTime()) &&
-                        b.getEndTime().equals(booking2.getEndTime())
-        ), "Booking2 is not present in the retrieved bookings.");
+        assertEquals(2, bookingsByResourceId.size(), "The number of bookings retrieved does not match the expected size.");
+
+        assertAll("Verify all retrieved bookings for resource ID 1",
+                () -> assertTrue(bookingsByResourceId.stream().anyMatch(b ->
+                        b.getId().equals(savedBooking1.getId()) &&
+                                b.getUserId().equals(booking1.getUserId()) &&
+                                b.getResourceId().equals(booking1.getResourceId()) &&
+                                b.getStartTime().equals(booking1.getStartTime()) &&
+                                b.getEndTime().equals(booking1.getEndTime())
+                ), "Booking1 is not present in the retrieved bookings."),
+                () -> assertTrue(bookingsByResourceId.stream().anyMatch(b ->
+                        b.getId().equals(savedBooking2.getId()) &&
+                                b.getUserId().equals(booking2.getUserId()) &&
+                                b.getResourceId().equals(booking2.getResourceId()) &&
+                                b.getStartTime().equals(booking2.getStartTime()) &&
+                                b.getEndTime().equals(booking2.getEndTime())
+                ), "Booking2 is not present in the retrieved bookings.")
+        );
     }
 }
