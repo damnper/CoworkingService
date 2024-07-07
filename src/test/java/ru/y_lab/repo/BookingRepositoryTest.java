@@ -100,7 +100,7 @@ public class BookingRepositoryTest {
         LocalDateTime endTime = startTime.plusHours(1);
         Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
 
-        bookingRepository.addBooking(booking);
+        bookingRepository.saveBooking(booking);
 
         Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
@@ -125,7 +125,7 @@ public class BookingRepositoryTest {
         LocalDateTime endTime = startTime.plusHours(1);
         Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
 
-        bookingRepository.addBooking(booking);
+        bookingRepository.saveBooking(booking);
 
         Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
@@ -157,7 +157,7 @@ public class BookingRepositoryTest {
 
         Booking booking = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking = bookingRepository.addBooking(booking);
+        Booking savedBooking = bookingRepository.saveBooking(booking);
 
         LocalDateTime newStartTime = LocalDateTime.of(2024, 6, 30, 12, 0, 0, 0);
         LocalDateTime newEndTime = newStartTime.plusHours(2);
@@ -196,7 +196,7 @@ public class BookingRepositoryTest {
     @DisplayName("Test for deleting an existing booking")
     public void testDeleteBooking() {
         Booking booking = new Booking(null, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.addBooking(booking);
+        bookingRepository.saveBooking(booking);
 
         bookingRepository.deleteBooking(booking.getId());
 
@@ -225,8 +225,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 2L, 2L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.addBooking(booking1);
-        Booking savedBooking2 = bookingRepository.addBooking(booking2);
+        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
+        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
         List<Booking> allBookings = bookingRepository.getAllBookings();
 
@@ -261,8 +261,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 1L, 2L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.addBooking(booking1);
-        Booking savedBooking2 = bookingRepository.addBooking(booking2);
+        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
+        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
         List<Booking> allBookings = bookingRepository.getAllBookings();
 
@@ -297,8 +297,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 2L, 1L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.addBooking(booking1);
-        Booking savedBooking2 = bookingRepository.addBooking(booking2);
+        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
+        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
 
         List<Booking> allBookings = bookingRepository.getBookingsByResourceId(1L);
 

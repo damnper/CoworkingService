@@ -7,6 +7,7 @@ import lombok.SneakyThrows;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.service.impl.ResourceServiceImpl;
 
+import static jakarta.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 
 /**
@@ -25,7 +26,13 @@ public class ResourceServlet extends HttpServlet {
     @Override
     @SneakyThrows
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
-        resourceService.addResource(req, resp);
+        String path = req.getPathInfo();
+
+        if (path.equals("/add")) {
+            resourceService.addResource(req, resp);
+        } else {
+            sendErrorResponse(resp, SC_BAD_REQUEST, "Invalid POST endpoint");
+        }
     }
 
     /**
@@ -38,18 +45,14 @@ public class ResourceServlet extends HttpServlet {
     @SneakyThrows
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
         String path = req.getPathInfo();
+        String resourceId = req.getParameter("resourceId");
 
-        if (path == null) {
-            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Path cannot be null");
-            return;
-        }
-
-        if (path.equals("/all")) {
-            resourceService.getAllResources(req, resp);
-        } else if (path.matches("/\\d+")) {
+        if ((path == null || path.equals("/")) && resourceId != null) {
             resourceService.getResourceById(req, resp);
+        } else if ("/all".equals(path)) {
+            resourceService.getAllResources(req, resp);
         } else {
-            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid GET endpoint");
+            sendErrorResponse(resp, SC_BAD_REQUEST, "Invalid GET endpoint or missing resourceId parameter");
         }
     }
 
@@ -62,7 +65,14 @@ public class ResourceServlet extends HttpServlet {
     @Override
     @SneakyThrows
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) {
-        resourceService.updateResource(req, resp);
+        String path = req.getPathInfo();
+        String resourceId = req.getParameter("resourceId");
+
+        if ((path == null || path.equals("/")) && resourceId != null) {
+            resourceService.updateResource(req, resp);
+        } else {
+            sendErrorResponse(resp, SC_BAD_REQUEST, "Invalid PUT endpoint or missing resourceId parameter");
+        }
     }
 
     /**
@@ -74,6 +84,13 @@ public class ResourceServlet extends HttpServlet {
     @Override
     @SneakyThrows
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) {
-        resourceService.deleteResource(req, resp);
+        String path = req.getPathInfo();
+        String resourceId = req.getParameter("resourceId");
+
+        if ((path == null || path.equals("/")) && resourceId != null) {
+            resourceService.deleteResource(req, resp);
+        } else {
+            sendErrorResponse(resp, SC_BAD_REQUEST, "Invalid PUT endpoint or missing resourceId parameter");
+        }
     }
 }

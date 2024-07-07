@@ -32,8 +32,6 @@ public class UserServiceImpl implements UserService {
     private final CustomUserMapper userMapper = new CustomUserMapper();
     private final UserRepository userRepository = new UserRepository();
     private final AuthenticationUtil authUtil = new AuthenticationUtil();
-//    private final UserMapper userMapper = UserMapper.INSTANCE;
-
 
     /**
      * Registers a new user.
@@ -88,11 +86,10 @@ public class UserServiceImpl implements UserService {
     public void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
-            Long userIdToGet = extractIdFromPath(req);
+            Long userIdToGet = Long.valueOf(req.getParameter("userId"));
             if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToGet)) throw new SecurityException("Access denied");
 
-            Long userId = extractIdFromPath(req);
-            User user = userRepository.getUserById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+            User user = userRepository.getUserById(userIdToGet).orElseThrow(() -> new UserNotFoundException("User not found"));
             UserDTO userDTO = userMapper.toDTO(user);
             sendSuccessResponse(resp, 200, userDTO);
         } catch (SecurityException e) {
@@ -135,7 +132,7 @@ public class UserServiceImpl implements UserService {
     public void updateUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
-            Long userIdToUpdate = extractIdFromPath(req);
+            Long userIdToUpdate = Long.valueOf(req.getParameter("userId"));
             if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToUpdate)) throw new SecurityException("Access denied");
 
             String requestBody = getRequestBody(req);
@@ -164,7 +161,7 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
-            Long userIdToDelete = extractIdFromPath(req);
+            Long userIdToDelete = Long.valueOf(req.getParameter("userId"));
             if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToDelete)) throw new SecurityException("Access denied");
 
             processUserDeletion(userIdToDelete, currentUser, req);

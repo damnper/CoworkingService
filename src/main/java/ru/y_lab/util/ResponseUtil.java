@@ -15,7 +15,6 @@ import java.io.IOException;
 public class ResponseUtil {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-
     /**
      * Sends a successful response with the data.
      *

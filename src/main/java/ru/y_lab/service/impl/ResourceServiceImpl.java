@@ -33,7 +33,6 @@ public class ResourceServiceImpl implements ResourceService {
     private final CustomResourceMapper resourceMapper = new CustomResourceMapper();
     private final ResourceRepository resourceRepository = new ResourceRepository();
     private final UserRepository userRepository = new UserRepository();
-    //    private final ResourceMapper resourceMapper = ResourceMapper.INSTANCE;
 
 
     /**
@@ -71,7 +70,7 @@ public class ResourceServiceImpl implements ResourceService {
     public void getResourceById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             authUtil.authenticateAndAuthorize(req, null);
-            Long resourceId = extractIdFromPath(req);
+            Long resourceId = Long.valueOf(req.getParameter("resourceId"));
             Resource resource = resourceRepository.getResourceById(resourceId).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + resourceId));
             User user = userRepository.getUserById(resource.getUserId()).orElseThrow(() -> new UserNotFoundException("User not found by ID: " + resource.getUserId()));
             ResourceWithOwnerDTO resourceWithOwnerDTO = resourceMapper.toResourceWithOwnerDTO(resource, user);
@@ -128,13 +127,13 @@ public class ResourceServiceImpl implements ResourceService {
     public void updateResource(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
-            Long resourceIdToUpdate = extractIdFromPath(req);
+            Long resourceIdToUpdate = Long.valueOf(req.getParameter("resourceId"));
             Resource resource = resourceRepository.getResourceById(resourceIdToUpdate).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + resourceIdToUpdate));
             if (!authUtil.isUserAuthorizedToAction(currentUser, resource.getUserId())) throw new SecurityException("Access denied");
 
             String requestBody = getRequestBody(req);
-            UpdateResourceRequestDTO loginRequest = parseRequest(requestBody, UpdateResourceRequestDTO.class);
-            ResourceDTO resourceDTO = processUpdatingResource(resourceIdToUpdate, loginRequest, resource);
+            UpdateResourceRequestDTO updateRequest = parseRequest(requestBody, UpdateResourceRequestDTO.class);
+            ResourceDTO resourceDTO = processUpdatingResource(resourceIdToUpdate, updateRequest, resource);
             sendSuccessResponse(resp, 200, resourceDTO);
         } catch (ResourceNotFoundException e) {
             sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
@@ -159,7 +158,7 @@ public class ResourceServiceImpl implements ResourceService {
     public void deleteResource(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
-            Long userIdToDelete = extractIdFromPath(req);
+            Long userIdToDelete = Long.valueOf(req.getParameter("resourceId"));
             Resource resource = resourceRepository.getResourceById(userIdToDelete).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + userIdToDelete));
             if (!authUtil.isUserAuthorizedToAction(currentUser, resource.getUserId())) throw new SecurityException("Access denied");
 

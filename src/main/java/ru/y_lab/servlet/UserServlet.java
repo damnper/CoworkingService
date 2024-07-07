@@ -41,21 +41,16 @@ public class UserServlet extends HttpServlet {
      * @param resp the HttpServletResponse object
      */
     @Override
-    @SneakyThrows
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String path = req.getPathInfo();
+        String userIdParam = req.getParameter("userId");
 
-        if (path == null) {
-            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Path cannot be null");
-            return;
-        }
-
-        if (path.equals("/all")) {
-            userService.getAllUsers(req, resp);
-        } else if (path.matches("/\\d+")) {
+        if ((path == null || path.equals("/")) && userIdParam != null) {
             userService.getUserById(req, resp);
+        } else if ("/all".equals(path)) {
+            userService.getAllUsers(req, resp);
         } else {
-            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid GET endpoint");
+            sendErrorResponse(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid GET endpoint or missing userId parameter");
         }
     }
 
