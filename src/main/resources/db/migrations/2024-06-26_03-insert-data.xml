@@ -10,7 +10,7 @@
         <insert tableName="users">
             <column name="id" valueNumeric="1"/>
             <column name="username" value="Admin"/>
-            <column name="password" value="admin"/>
+            <column name="password" value="admin123"/>
             <column name="role" value="ADMIN"/>
         </insert>
         <!-- ChangeSet for inserting initial admin user into the users table -->
