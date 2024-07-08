@@ -18,7 +18,15 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 @Loggable
 public class UserServlet extends HttpServlet {
 
-    private final UserService userService = new UserServiceImpl();
+    private final UserService userService;
+
+    public UserServlet(UserService userService) {
+        this.userService = userService;
+    }
+
+    public UserServlet() {
+        userService = new UserServiceImpl();
+    }
 
     /**
      * Handles HTTP POST requests for user-related operations like registering and logging in a user.

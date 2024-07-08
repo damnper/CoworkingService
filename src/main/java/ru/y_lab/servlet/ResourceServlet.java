@@ -17,7 +17,15 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 @Loggable
 public class ResourceServlet extends HttpServlet {
 
-    private final ResourceService resourceService = new ResourceServiceImpl();
+    private final ResourceService resourceService;
+
+    public ResourceServlet(ResourceService resourceService) {
+        this.resourceService = resourceService;
+    }
+
+    public ResourceServlet() {
+        resourceService = new ResourceServiceImpl();
+    }
 
     /**
      * Handles HTTP POST requests for adding a new resource.

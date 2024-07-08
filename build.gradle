@@ -3,7 +3,7 @@ plugins {
     id 'war'
     id 'jacoco'
 //    id "io.freefair.aspectj" version "5.1.1"
-    id "io.freefair.aspectj.post-compile-weaving" version "6.4.1"
+    id "io.freefair.aspectj.post-compile-weaving" version "8.6"
 }
 
 group = 'ru.y_lab'
@@ -27,6 +27,8 @@ dependencies {
 
     implementation 'org.aspectj:aspectjrt:1.9.8'
     implementation 'org.aspectj:aspectjweaver:1.9.8'
+    testImplementation 'org.aspectj:aspectjrt:1.9.8'
+    testImplementation 'org.aspectj:aspectjweaver:1.9.8'
 
     // Jackson for JSON processing
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
@@ -43,9 +45,8 @@ dependencies {
 
     // Servlet API
     compileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
-
-    // YAML parser
-    implementation 'org.yaml:snakeyaml:2.2'
+    testCompileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+    testImplementation 'jakarta.servlet:jakarta.servlet-api:6.1.0'
 
     // JUnit for testing
     testImplementation platform('org.junit:junit-bom:5.10.0')

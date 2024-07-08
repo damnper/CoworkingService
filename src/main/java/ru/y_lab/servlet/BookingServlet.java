@@ -19,7 +19,15 @@ import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 @Loggable
 public class BookingServlet extends HttpServlet {
 
-    private final BookingService bookingService = new BookingServiceImpl();
+    private final BookingService bookingService;
+
+    public BookingServlet(BookingService bookingService) {
+        this.bookingService = bookingService;
+    }
+
+    public BookingServlet() {
+        bookingService = new BookingServiceImpl();
+    }
 
     /**
      * Handles HTTP POST requests for adding a new booking.
