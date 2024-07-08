@@ -2,7 +2,6 @@ package ru.y_lab.service.impl;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.*;
 import ru.y_lab.exception.ResourceNotFoundException;
@@ -19,7 +18,8 @@ import java.io.IOException;
 import java.util.List;
 
 import static jakarta.servlet.http.HttpServletResponse.*;
-import static ru.y_lab.util.RequestUtil.*;
+import static ru.y_lab.util.RequestUtil.getRequestBody;
+import static ru.y_lab.util.RequestUtil.parseRequest;
 import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
 import static ru.y_lab.util.ResponseUtil.sendSuccessResponse;
 import static ru.y_lab.util.ValidationUtil.validateAddResourceRequest;
@@ -29,14 +29,27 @@ import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
  * The ResourceServiceImpl class provides an implementation of the ResourceService interface.
  * It interacts with the ResourceRepository to perform CRUD operations.
  */
-@RequiredArgsConstructor
 @Loggable
 public class ResourceServiceImpl implements ResourceService {
 
-    private final AuthenticationUtil authUtil = new AuthenticationUtil();
-    private final CustomResourceMapper resourceMapper = new CustomResourceMapper();
-    private final ResourceRepository resourceRepository = new ResourceRepository();
-    private final UserRepository userRepository = new UserRepository();
+    private final AuthenticationUtil authUtil;
+    private final CustomResourceMapper resourceMapper;
+    private final ResourceRepository resourceRepository;
+    private final UserRepository userRepository;
+
+    public ResourceServiceImpl() {
+        authUtil = new AuthenticationUtil();
+        resourceMapper = new CustomResourceMapper();
+        resourceRepository = new ResourceRepository();
+        userRepository = new UserRepository();
+    }
+
+    public ResourceServiceImpl(AuthenticationUtil authUtil, CustomResourceMapper resourceMapper, ResourceRepository resourceRepository, UserRepository userRepository) {
+        this.authUtil = authUtil;
+        this.resourceMapper = resourceMapper;
+        this.resourceRepository = resourceRepository;
+        this.userRepository = userRepository;
+    }
 
     /**
      * Adds a new resource.
@@ -148,7 +161,6 @@ public class ResourceServiceImpl implements ResourceService {
         } catch (Exception e) {
             sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
     }
 
     /**

@@ -43,13 +43,30 @@ import static ru.y_lab.util.ValidationUtil.*;
 @Loggable
 public class BookingServiceImpl implements BookingService {
 
-    private final AuthenticationUtil authUtil = new AuthenticationUtil();
-    private final CustomBookingMapper bookingMapper = new CustomBookingMapper();
-    private final CustomDateTimeMapper dateTimeMapper = new CustomDateTimeMapper();
-    private final UserRepository userRepository = new UserRepository();
-    private final ResourceRepository resourceRepository = new ResourceRepository();
-    private final BookingRepository bookingRepository = new BookingRepository();
+    private final AuthenticationUtil authUtil;
+    private final CustomBookingMapper bookingMapper;
+    private final CustomDateTimeMapper dateTimeMapper;
+    private final UserRepository userRepository;
+    private final ResourceRepository resourceRepository;
+    private final BookingRepository bookingRepository;
 
+    public BookingServiceImpl() {
+        authUtil = new AuthenticationUtil();
+         bookingMapper = new CustomBookingMapper();
+         dateTimeMapper = new CustomDateTimeMapper();
+         userRepository = new UserRepository();
+         resourceRepository = new ResourceRepository();
+         bookingRepository = new BookingRepository();
+    }
+
+    public BookingServiceImpl(AuthenticationUtil authUtil, CustomBookingMapper bookingMapper, CustomDateTimeMapper dateTimeMapper, UserRepository userRepository, ResourceRepository resourceRepository, BookingRepository bookingRepository) {
+        this.authUtil = authUtil;
+        this.bookingMapper = bookingMapper;
+        this.dateTimeMapper = dateTimeMapper;
+        this.userRepository = userRepository;
+        this.resourceRepository = resourceRepository;
+        this.bookingRepository = bookingRepository;
+    }
 
     /**
      * Adds a new booking based on user input.
@@ -71,10 +88,12 @@ public class BookingServiceImpl implements BookingService {
             sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
         } catch (IllegalArgumentException e) {
             sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
         } catch (BookingConflictException e) {
             sendErrorResponse(resp, SC_CONFLICT, e.getMessage());
         } catch (Exception e) {
-            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
@@ -121,7 +140,7 @@ public class BookingServiceImpl implements BookingService {
         try {
             UserDTO userDTO = authUtil.authenticateAndAuthorize(req, null);
             List<Booking> allBookings = bookingRepository.getBookingsByUserId(userDTO.id())
-                    .orElseThrow(() -> new BookingNotFoundException("User " + userDTO.id() + "have not any booking"));
+                    .orElseThrow(() -> new BookingNotFoundException("User " + userDTO.id() + " have not any booking"));
 
             sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookings));
         } catch (SecurityException e) {
@@ -265,7 +284,7 @@ public class BookingServiceImpl implements BookingService {
         } catch (BookingNotFoundException e) {
             sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
         } catch (Exception e) {
-            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
@@ -296,7 +315,7 @@ public class BookingServiceImpl implements BookingService {
         } catch (BookingNotFoundException e) {
             sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
         } catch (Exception e) {
-            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 

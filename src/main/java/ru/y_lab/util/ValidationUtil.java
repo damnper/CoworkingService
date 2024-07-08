@@ -185,7 +185,7 @@ public class ValidationUtil {
         if (!startDateTime.isBefore(endDateTime)) {
             throw new IllegalArgumentException(INVALID_START_BEFORE_END_MESSAGE);
         }
-        if (startDateTime.isBefore(LocalDateTime.now()) || endDateTime.isBefore(LocalDateTime.now())) {
+        if (startDateTime.isBefore(LocalDateTime.now()) | endDateTime.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException(INVALID_TIME_IN_PAST_MESSAGE);
         }
     }

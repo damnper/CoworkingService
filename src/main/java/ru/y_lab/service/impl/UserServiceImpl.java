@@ -2,7 +2,6 @@ package ru.y_lab.service.impl;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.RegisterRequestDTO;
@@ -28,13 +27,24 @@ import static ru.y_lab.util.ValidationUtil.*;
  * The UserServiceImpl class provides an implementation of the UserService interface.
  * It interacts with the UserRepository to perform CRUD operations.
  */
-@RequiredArgsConstructor
 @Loggable
 public class UserServiceImpl implements UserService {
 
-    private final CustomUserMapper userMapper = new CustomUserMapper();
-    private final UserRepository userRepository = new UserRepository();
-    private final AuthenticationUtil authUtil = new AuthenticationUtil();
+    private final CustomUserMapper userMapper;
+    private final UserRepository userRepository;
+    private final AuthenticationUtil authUtil;
+
+    public UserServiceImpl() {
+        this.userMapper = new CustomUserMapper();
+        this.userRepository = new UserRepository();
+        this.authUtil = new AuthenticationUtil();
+    }
+
+    public UserServiceImpl(CustomUserMapper userMapper, UserRepository userRepository, AuthenticationUtil authUtil) {
+        this.userMapper = userMapper;
+        this.userRepository = userRepository;
+        this.authUtil = authUtil;
+    }
 
     /**
      * Registers a new user.
@@ -153,7 +163,6 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
     }
 
     /**
@@ -226,7 +235,7 @@ public class UserServiceImpl implements UserService {
      * @param req            the HttpServletRequest object
      * @throws UserNotFoundException  if the user is not found
      */
-    private void processUserDeletion(Long userIdToDelete, UserDTO currentUser, HttpServletRequest req) throws UserNotFoundException {
+    public void processUserDeletion(Long userIdToDelete, UserDTO currentUser, HttpServletRequest req) throws UserNotFoundException {
         try {
             userRepository.deleteUser(userIdToDelete);
             if (currentUser.id().equals(userIdToDelete)) {
