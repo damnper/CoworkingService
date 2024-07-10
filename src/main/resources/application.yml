@@ -13,3 +13,7 @@ liquibase:
     enabled: true
     drop-first: true
     log-level: warning
+
+logging:
+    level:
+        root: INFO

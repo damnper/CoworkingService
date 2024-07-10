@@ -1,5 +1,6 @@
 package ru.y_lab.util;
 
+import org.springframework.stereotype.Component;
 import ru.y_lab.dto.*;
 
 import java.time.Instant;
@@ -10,6 +11,7 @@ import java.util.regex.Pattern;
 /**
  * Utility class for handling data validation.
  */
+@Component
 public class ValidationUtil {
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,15}$");
@@ -67,7 +69,7 @@ public class ValidationUtil {
      */
     public static void validateLoginRequest(LoginRequestDTO request) {
         if (request.username() == null || request.username().isEmpty() || !validateUsername(request.username())) {
-            throw new IllegalArgumentException(INVALID_USERNAME_MESSAGE);
+                throw new IllegalArgumentException(INVALID_USERNAME_MESSAGE);
         }
         if (request.password() == null || request.password().isEmpty() || !validatePassword(request.password())) {
             throw new IllegalArgumentException(INVALID_PASSWORD_MESSAGE);

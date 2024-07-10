@@ -1,10 +1,12 @@
 package ru.y_lab.repo;
 
 
-import ru.y_lab.config.DatabaseManager;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +16,11 @@ import java.util.Optional;
  * The UserRepository class provides methods to manage users.
  * It stores user data in a HashMap and supports CRUD operations.
  */
+@Repository
+@RequiredArgsConstructor
 public class UserRepository {
+
+    private final DataSource dataSource;
 
     /**
      * Adds a new user to the repository.
@@ -23,7 +29,7 @@ public class UserRepository {
      */
     public User addUser(User user) {
         String sql = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, (?), (?), (?))";
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, user.getUsername());
@@ -56,7 +62,7 @@ public class UserRepository {
      */
     public Optional<User> getUserById(Long id) throws UserNotFoundException {
         String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, id);
 
@@ -65,7 +71,7 @@ public class UserRepository {
                     User user = mapRowToUser(rs);
                     return Optional.of(user);
                 } else {
-                    throw new UserNotFoundException("User with ID " + id + " not found");
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
@@ -77,19 +83,19 @@ public class UserRepository {
      * Retrieves a user by their username.
      * @param username the username of the user
      * @return the user with the specified username
-     * @throws UserNotFoundException if the user with the specified username is not found
      */
-    public User getUserByUsername(String username) throws UserNotFoundException {
+    public Optional<User> getUserByUsername(String username) {
         String sql = "SELECT * FROM coworking_service.users WHERE username = ?";
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapRowToUser(rs);
+                    User user = mapRowToUser(rs);
+                    return Optional.of(user);
                 } else {
-                    throw new UserNotFoundException("User with username " + username + " not found");
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
@@ -100,13 +106,12 @@ public class UserRepository {
     /**
      * Updates an existing user in the repository.
      * @param user the user with updated information
-     * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public User updateUser(User user) throws UserNotFoundException {
+    public Optional<User> updateUser(User user) {
         String updateSql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
         String selectSql = "SELECT * FROM coworking_service.users WHERE id = ?";
 
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement updatePs = connection.prepareStatement(updateSql);
              PreparedStatement selectPs = connection.prepareStatement(selectSql)) {
             updatePs.setString(1, user.getUsername());
@@ -119,9 +124,10 @@ public class UserRepository {
             selectPs.setLong(1, user.getId());
             try (ResultSet rs = selectPs.executeQuery()) {
                 if (rs.next()) {
-                    return mapRowToUser(rs);
+                    User updatedUser = mapRowToUser(rs);
+                    return Optional.of(updatedUser);
                 } else {
-                    throw new UserNotFoundException("User with ID " + user.getId() + " not found after update");
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
@@ -136,7 +142,7 @@ public class UserRepository {
      */
     public void deleteUser(Long id) throws UserNotFoundException {
         String sql = "DELETE FROM coworking_service.users WHERE id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, id);
 
@@ -156,7 +162,7 @@ public class UserRepository {
     public List<User> getAllUsers() {
         String sql = "SELECT * FROM coworking_service.users";
         List<User> users = new ArrayList<>();
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 

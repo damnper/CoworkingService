@@ -2,8 +2,10 @@ package ru.y_lab.util;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.annotation.SessionScope;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
@@ -14,11 +16,18 @@ import ru.y_lab.repo.UserRepository;
 /**
  * Utility class for handling authentication and authorization.
  */
-@RequiredArgsConstructor
+@Component
+@SessionScope
 public class AuthenticationUtil {
 
-    private final UserRepository userRepository = new UserRepository();
-    private final CustomUserMapper userMapper = new CustomUserMapper();
+    private final UserRepository userRepository;
+    private final CustomUserMapper userMapper;
+
+    @Autowired
+    public AuthenticationUtil(UserRepository userRepository, CustomUserMapper userMapper) {
+        this.userRepository = userRepository;
+        this.userMapper = userMapper;
+    }
 
     /**
      * Authenticates the user.
@@ -29,7 +38,8 @@ public class AuthenticationUtil {
      */
     public UserDTO authenticateUser(LoginRequestDTO loginRequest) throws UserNotFoundException {
         if (authenticate(loginRequest.username(), loginRequest.password())) {
-            User currentUser = userRepository.getUserByUsername(loginRequest.username());
+            User currentUser = userRepository.getUserByUsername(loginRequest.username())
+                    .orElseThrow(() -> new UserNotFoundException(loginRequest.username()));
             return userMapper.toDTO(currentUser);
         } else {
             throw new IllegalArgumentException("Invalid credentials");
@@ -84,14 +94,9 @@ public class AuthenticationUtil {
      */
     @SneakyThrows
     private boolean authenticate(String username, String password) {
-        User user;
-        try {
-            user = userRepository.getUserByUsername(username);
-
-        } catch (UserNotFoundException e) {
-            throw new UserNotFoundException("User not found");
-        }
-        return user != null && user.getPassword().equals(password);
+        User user = userRepository.getUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException("User " + username + "not found"));
+        return user.getPassword().equals(password);
     }
 
 }
