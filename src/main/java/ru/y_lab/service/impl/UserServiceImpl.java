@@ -1,6 +1,8 @@
 package ru.y_lab.service.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.LoginRequestDTO;
@@ -24,20 +26,19 @@ import static ru.y_lab.util.ValidationUtil.*;
  */
 @Loggable
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final CustomUserMapper userMapper;
     private final UserRepository userRepository;
     private final AuthenticationUtil authUtil;
 
-    @Autowired
-    public UserServiceImpl(CustomUserMapper userMapper, UserRepository userRepository, AuthenticationUtil authUtil) {
-        this.userMapper = userMapper;
-        this.userRepository = userRepository;
-        this.authUtil = authUtil;
-    }
-
-
+    /**
+     * Registers a new user in the system.
+     *
+     * @param request the registration request containing user details
+     * @return the registered user as a UserDTO
+     */
     @Override
     public UserDTO registerUser(RegisterRequestDTO request) {
         validateRegisterRequest(request);
@@ -52,29 +53,67 @@ public class UserServiceImpl implements UserService {
         return userMapper.toDTO(registeredUser);
     }
 
+    /**
+     * Authenticates a user and logs them in. Stores user information in the session.
+     *
+     * @param request the login request containing username and password
+     * @param httpRequest the HTTP request to get the session
+     * @return the authenticated user as a UserDTO
+     */
     @Override
-    public UserDTO loginUser(LoginRequestDTO request) throws UserNotFoundException {
+    public UserDTO loginUser(LoginRequestDTO request, HttpServletRequest httpRequest) {
         validateLoginRequest(request);
-        return authUtil.authenticateUser(request);
+        UserDTO authenticatedUser = userMapper.toDTO(authUtil.login(request));
+        createSession(authenticatedUser, httpRequest);
+        return authenticatedUser;
     }
 
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param userId the ID of the user
+     * @return the user as a UserDTO
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     */
     @Override
-    public UserDTO getUserById(Long userId) throws UserNotFoundException {
+    public UserDTO getUserById(Long userId) {
         User user = userRepository.getUserById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + userId));
         return userMapper.toDTO(user);
     }
 
+    /**
+     * Retrieves all users in the system. Only accessible by admin users.
+     *
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of all users as UserDTOs
+     * @throws SecurityException if the current user is not an admin
+     */
     @Override
-    public List<UserDTO> getAllUsers() {
-        List<User> users = userRepository.getAllUsers();
+    public List<UserDTO> getAllUsers(HttpServletRequest httpRequest) {
+        authUtil.authenticate(httpRequest, "ADMIN");
+
+        List<User> users = userRepository.getAllUsers()
+                .orElseThrow(() -> new UserNotFoundException("No users found in the system."));
         return users.stream()
                 .map(userMapper::toDTO)
                 .toList();
     }
 
+    /**
+     * Updates an existing user. Only accessible by the user themselves or an admin.
+     *
+     * @param userId the ID of the user to be updated
+     * @param request the update request containing updated user details
+     * @param httpRequest the HTTP request to get the session
+     * @return the updated user as a UserDTO
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     * @throws SecurityException if the current user is not authorized to update the user
+     */
     @Override
-    public UserDTO updateUser(Long userId, UpdateUserRequestDTO request) throws UserNotFoundException {
+    public UserDTO updateUser(Long userId, UpdateUserRequestDTO request, HttpServletRequest httpRequest) {
+        UserDTO currentUser = authUtil.authenticate(httpRequest, null);
+        authUtil.authorize(currentUser, userId);
         validateUpdateUserRequest(request);
 
         User user = userRepository.getUserById(userId)
@@ -83,12 +122,34 @@ public class UserServiceImpl implements UserService {
         user.setPassword(request.password());
 
         User updatedUser = userRepository.updateUser(user)
-                .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found after update by ID: " + userId));
         return userMapper.toDTO(updatedUser);
     }
 
+    /**
+     * Deletes a user by their ID. Only accessible by the user themselves or an admin.
+     *
+     * @param userId the ID of the user to be deleted
+     * @param httpRequest the HTTP request to get the session
+     * @throws UserNotFoundException if the user with the specified ID is not found
+     * @throws SecurityException if the current user is not authorized to delete the user
+     */
     @Override
-    public void deleteUser(Long userId) throws UserNotFoundException {
+    public void deleteUser(Long userId, HttpServletRequest httpRequest) {
+        UserDTO currentUser = authUtil.authenticate(httpRequest, null);
+        authUtil.authorize(currentUser, userId);
         userRepository.deleteUser(userId);
+    }
+
+    /**
+     * Creates a session and stores the authenticated user in it.
+     *
+     * @param user the authenticated user
+     * @param request the HTTP request to get the session
+     */
+    private void createSession(UserDTO user, HttpServletRequest request) {
+        HttpSession session = request.getSession(true);
+        session.setAttribute("currentUser", user);
+        session.setMaxInactiveInterval(30 * 60); // Session timeout in seconds
     }
 }

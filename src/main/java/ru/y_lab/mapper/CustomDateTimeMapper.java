@@ -1,8 +1,11 @@
 package ru.y_lab.mapper;
 
+import org.springframework.stereotype.Component;
+
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 
+@Component
 public class CustomDateTimeMapper {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_TIME;

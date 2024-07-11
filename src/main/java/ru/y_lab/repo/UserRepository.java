@@ -3,6 +3,7 @@ package ru.y_lab.repo;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.exception.DatabaseException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 
@@ -14,7 +15,7 @@ import java.util.Optional;
 
 /**
  * The UserRepository class provides methods to manage users.
- * It stores user data in a HashMap and supports CRUD operations.
+ * It interacts with the database to perform CRUD operations for users.
  */
 @Repository
 @RequiredArgsConstructor
@@ -22,15 +23,22 @@ public class UserRepository {
 
     private final DataSource dataSource;
 
+    // SQL Queries as constants
+    private static final String ADD_USER_SQL = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, ?, ?, ?)";
+    private static final String GET_USER_BY_ID_SQL = "SELECT * FROM coworking_service.users WHERE id = ?";
+    private static final String GET_USER_BY_USERNAME_SQL = "SELECT * FROM coworking_service.users WHERE username = ?";
+    private static final String UPDATE_USER_SQL = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
+    private static final String DELETE_USER_SQL = "DELETE FROM coworking_service.users WHERE id = ?";
+    private static final String GET_ALL_USERS_SQL = "SELECT * FROM coworking_service.users";
+
     /**
      * Adds a new user to the repository.
      * @param user the user to be added
      * @return the user with the specified ID
      */
     public User addUser(User user) {
-        String sql = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, (?), (?), (?))";
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement ps = connection.prepareStatement(ADD_USER_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPassword());
@@ -38,7 +46,7 @@ public class UserRepository {
 
             int affectedRows = ps.executeUpdate();
             if (affectedRows == 0) {
-                throw new SQLException("Creating user failed, no rows affected.");
+                throw new DatabaseException("User creation failed. No rows affected.");
             }
 
             try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
@@ -46,11 +54,11 @@ public class UserRepository {
                     user.setId(generatedKeys.getLong(1));
                     return user;
                 } else {
-                    throw new SQLException("Creating user failed, no ID obtained.");
+                    throw new DatabaseException("User creation failed. No ID obtained.");
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while adding user", e);
+            throw new DatabaseException("An error occurred while adding the user. Please try again later.");
         }
     }
 
@@ -60,10 +68,9 @@ public class UserRepository {
      * @return the user with the specified ID
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public Optional<User> getUserById(Long id) throws UserNotFoundException {
-        String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
+    public Optional<User> getUserById(Long id) {
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+             PreparedStatement ps = connection.prepareStatement(GET_USER_BY_ID_SQL)) {
             ps.setLong(1, id);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -75,7 +82,7 @@ public class UserRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while retrieving user by ID", e);
+            throw new DatabaseException("An error occurred while retrieving the user by ID. Please try again later.");
         }
     }
 
@@ -85,9 +92,8 @@ public class UserRepository {
      * @return the user with the specified username
      */
     public Optional<User> getUserByUsername(String username) {
-        String sql = "SELECT * FROM coworking_service.users WHERE username = ?";
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+             PreparedStatement ps = connection.prepareStatement(GET_USER_BY_USERNAME_SQL)) {
             ps.setString(1, username);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -99,21 +105,47 @@ public class UserRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while retrieving user by username", e);
+            throw new DatabaseException("An error occurred while retrieving the user by username. Please try again later.");
         }
+    }
+
+    /**
+     * Retrieves all users from the repository.
+     * @return a list of all users
+     */
+    public Optional<List<User>> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_ALL_USERS_SQL);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                users.add(mapRowToUser(rs));
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("An error occurred while retrieving all users. Please try again later.");
+        }
+        return users.isEmpty() ? Optional.empty() : Optional.of(users);
     }
 
     /**
      * Updates an existing user in the repository.
      * @param user the user with updated information
+     * @return the updated user
      */
     public Optional<User> updateUser(User user) {
-        String updateSql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
-        String selectSql = "SELECT * FROM coworking_service.users WHERE id = ?";
-
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement updatePs = connection.prepareStatement(updateSql);
-             PreparedStatement selectPs = connection.prepareStatement(selectSql)) {
+             PreparedStatement updatePs = connection.prepareStatement(UPDATE_USER_SQL);
+             PreparedStatement selectPs = connection.prepareStatement(GET_USER_BY_ID_SQL)) {
+
+            // Check if user exists
+            selectPs.setLong(1, user.getId());
+            try (ResultSet rs = selectPs.executeQuery()) {
+                if (!rs.next()) {
+                    throw new UserNotFoundException("User with ID " + user.getId() + " not found.");
+                }
+            }
+
             updatePs.setString(1, user.getUsername());
             updatePs.setString(2, user.getPassword());
             updatePs.setString(3, user.getRole());
@@ -121,7 +153,6 @@ public class UserRepository {
 
             updatePs.executeUpdate();
 
-            selectPs.setLong(1, user.getId());
             try (ResultSet rs = selectPs.executeQuery()) {
                 if (rs.next()) {
                     User updatedUser = mapRowToUser(rs);
@@ -131,7 +162,7 @@ public class UserRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while updating user", e);
+            throw new DatabaseException("An error occurred while updating the user. Please try again later.");
         }
     }
 
@@ -140,39 +171,19 @@ public class UserRepository {
      * @param id the ID of the user to be deleted
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public void deleteUser(Long id) throws UserNotFoundException {
-        String sql = "DELETE FROM coworking_service.users WHERE id = ?";
+    public void deleteUser(Long id) {
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+             PreparedStatement ps = connection.prepareStatement(DELETE_USER_SQL)) {
+
             ps.setLong(1, id);
 
             int rowsAffected = ps.executeUpdate();
             if (rowsAffected == 0) {
-                throw new UserNotFoundException("User with ID " + id + " not found");
+                throw new UserNotFoundException("User with ID " + id + " not found.");
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while deleting user", e);
+            throw new DatabaseException("An error occurred while deleting the user. Please try again later.");
         }
-    }
-
-    /**
-     * Retrieves all users from the repository.
-     * @return a list of all users
-     */
-    public List<User> getAllUsers() {
-        String sql = "SELECT * FROM coworking_service.users";
-        List<User> users = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                users.add(mapRowToUser(rs));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Error while retrieving all users", e);
-        }
-        return users;
     }
 
     /**

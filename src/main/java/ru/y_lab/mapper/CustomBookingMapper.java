@@ -1,5 +1,6 @@
 package ru.y_lab.mapper;
 
+import org.springframework.stereotype.Component;
 import ru.y_lab.dto.BookingDTO;
 import ru.y_lab.dto.BookingWithOwnerResourceDTO;
 import ru.y_lab.model.Booking;
@@ -8,6 +9,7 @@ import ru.y_lab.model.User;
 
 import java.time.format.DateTimeFormatter;
 
+@Component
 public class CustomBookingMapper {
 
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;

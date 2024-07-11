@@ -1,3 +1,3 @@
 package ru.y_lab.dto;
 
-public record UserDTO(Long id, String username, String password, String role) { }
+public record UserDTO(Long id, String username, String role) { }

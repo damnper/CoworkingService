@@ -1,11 +1,8 @@
 package ru.y_lab.service;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import ru.y_lab.exception.ResourceNotFoundException;
-import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.dto.*;
 
-import java.io.IOException;
+import java.util.List;
 
 /**
  * The ResourceService interface defines methods for managing resources.
@@ -13,50 +10,44 @@ import java.io.IOException;
 public interface ResourceService {
 
     /**
-     * Adds a new resource.
+     * Adds a new resource to the system.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param request the request containing resource details
+     * @param currentUser the current authenticated user
+     * @return the added resource as a ResourceDTO
      */
-    void addResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    ResourceDTO addResource(AddResourceRequestDTO request, UserDTO currentUser);
 
     /**
-     * Retrieves a resource by its unique identifier.
+     * Retrieves a resource by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws ResourceNotFoundException if the resource with the given ID is not found
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource
+     * @return the resource with owner details as a ResourceWithOwnerDTO
      */
-    void getResourceById(HttpServletRequest req, HttpServletResponse resp) throws ResourceNotFoundException, IOException;
+    ResourceWithOwnerDTO getResourceById(Long resourceId);
 
     /**
-     * Retrieves a list of all resources.
+     * Retrieves all resources in the system.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws UserNotFoundException if the user is not found
-     * @throws IOException if an I/O error occurs
+     * @return a list of all resources with their owner details
      */
-    void getAllResources(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
+    List<ResourceWithOwnerDTO> getAllResources();
 
     /**
      * Updates an existing resource.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource to be updated
+     * @param request the update request containing updated resource details
+     * @param currentUser the current authenticated user
+     * @return the updated resource as a ResourceDTO
      */
-    void updateResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
-
+    ResourceDTO updateResource(Long resourceId, UpdateResourceRequestDTO request, UserDTO currentUser);
 
     /**
-     * Deletes a resource.
+     * Deletes a resource by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource to be deleted
+     * @param currentUser the current authenticated user
      */
-    void deleteResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    void deleteResource(Long resourceId, UserDTO currentUser);
 }

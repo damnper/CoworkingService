@@ -1,10 +1,12 @@
 package ru.y_lab.mapper;
 
+import org.springframework.stereotype.Component;
 import ru.y_lab.dto.ResourceDTO;
 import ru.y_lab.dto.ResourceWithOwnerDTO;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 
+@Component
 public class CustomResourceMapper {
 
     public Resource toEntity(ResourceDTO resourceDTO) {
