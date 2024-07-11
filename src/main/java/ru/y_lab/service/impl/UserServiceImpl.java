@@ -1,127 +1,248 @@
 package ru.y_lab.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import ru.y_lab.annotation.Loggable;
+import ru.y_lab.dto.LoginRequestDTO;
+import ru.y_lab.dto.RegisterRequestDTO;
+import ru.y_lab.dto.UpdateUserRequestDTO;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomUserMapper;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.AuthenticationUtil;
-import ru.y_lab.util.InputReader;
-import ru.y_lab.util.ValidationUtil;
 
+import java.io.IOException;
 import java.util.List;
 
-import static ru.y_lab.constants.ColorTextCodes.*;
+import static jakarta.servlet.http.HttpServletResponse.*;
+import static ru.y_lab.util.RequestUtil.getRequestBody;
+import static ru.y_lab.util.RequestUtil.parseRequest;
+import static ru.y_lab.util.ResponseUtil.*;
+import static ru.y_lab.util.ValidationUtil.*;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
  * It interacts with the UserRepository to perform CRUD operations.
  */
-@RequiredArgsConstructor
+@Loggable
 public class UserServiceImpl implements UserService {
 
-    private final InputReader inputReader;
+    private final CustomUserMapper userMapper;
     private final UserRepository userRepository;
     private final AuthenticationUtil authUtil;
-    private static User currentUser = null;
+
+    public UserServiceImpl() {
+        this.userMapper = new CustomUserMapper();
+        this.userRepository = new UserRepository();
+        this.authUtil = new AuthenticationUtil();
+    }
+
+    public UserServiceImpl(CustomUserMapper userMapper, UserRepository userRepository, AuthenticationUtil authUtil) {
+        this.userMapper = userMapper;
+        this.userRepository = userRepository;
+        this.authUtil = authUtil;
+    }
 
     /**
-     * Registers a new user by taking user input for username and password.
-     * Validates the username and password format before registering the user.
-     * @return the registered user, or null if registration fails
+     * Registers a new user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
     @Override
-    public User registerUser() {
-        System.out.print(CYAN + "Enter username: " + RESET);
-        String username = inputReader.readLine();
-        if (!ValidationUtil.validateUsername(username)) {
-            System.out.println(RED + "Invalid username. Username must be 3 to 15 characters long and can only contain letters, numbers, and underscores. Please try again." + RESET);
-            return null;
+    public void registerUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String requestBody = getRequestBody(req);
+            RegisterRequestDTO loginRequest = parseRequest(requestBody, RegisterRequestDTO.class);
+            UserDTO userDTO = processRegisterUser(loginRequest);
+            sendSuccessResponse(resp, 201, userDTO);
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
         }
+    }
 
-        System.out.print(CYAN + "Enter password: " + RESET);
-        String password = inputReader.readLine();
-        if (!ValidationUtil.validatePassword(password)) {
-            System.out.println(RED + "Invalid password. Password must be 6 to 20 characters long and can only contain letters, numbers, and the special characters @, #, and %. Please try again." + RESET);
-            return null;
+    /**
+     * Logs in a user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String requestBody = getRequestBody(req);
+            LoginRequestDTO loginRequest = parseRequest(requestBody, LoginRequestDTO.class);
+            validateLoginRequest(loginRequest);
+            UserDTO userDTO = authUtil.authenticateUser(loginRequest);
+            createSession(req, userDTO);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (UserNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
         }
+    }
+
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToGet = Long.valueOf(req.getParameter("userId"));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToGet)) throw new SecurityException("Access denied");
+
+            User user = userRepository.getUserById(userIdToGet).orElseThrow(() -> new UserNotFoundException("User not found"));
+            UserDTO userDTO = userMapper.toDTO(user);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves all users.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            List<UserDTO> users = userRepository.getAllUsers().stream()
+                    .map(userMapper::toDTO)
+                    .toList();
+            sendSuccessResponse(resp, 200, users);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Updates the information of an existing user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void updateUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToUpdate = Long.valueOf(req.getParameter("userId"));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToUpdate)) throw new SecurityException("Access denied");
+
+            String requestBody = getRequestBody(req);
+            UpdateUserRequestDTO loginRequest = parseRequest(requestBody, UpdateUserRequestDTO.class);
+            validateUpdateUserRequest(loginRequest);
+            UserDTO userDTO = processUpdatingUser(userIdToUpdate, loginRequest);
+            sendSuccessResponse(resp, 200, userDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    @Override
+    public void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToDelete = Long.valueOf(req.getParameter("userId"));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, userIdToDelete)) throw new SecurityException("Access denied");
+
+            processUserDeletion(userIdToDelete, currentUser, req);
+            sendSuccessResponse(resp, 204);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    /**
+     * Registers a new user by deserializing the provided JSON input.
+     * Validates the username and password format before registering the user.
+     *
+     * @param request JSON representation of the user to be registered
+     * @return the registered user as a UserDTO
+     */
+    private UserDTO processRegisterUser(RegisterRequestDTO request) {
+        validateRegisterRequest(request);
 
         User user = User.builder()
-                .username(username)
-                .password(password)
+                .username(request.username())
+                .password(request.password())
                 .role("USER")
                 .build();
 
         User registeredUser = userRepository.addUser(user);
-        System.out.println(GREEN + "\nUser registered successfully!" + RESET);
-        return registeredUser;
+        return userMapper.toDTO(registeredUser);
     }
 
-    /**
-     * Logs in a user by authenticating with the provided username and password.
-     * Sets the currentUser static field upon successful authentication.
-     * @throws UserNotFoundException if the user with the provided username is not found
-     */
-    @Override
-    public void loginUser() throws UserNotFoundException {
-        System.out.print(CYAN + "Enter username: " + RESET);
-        String username = inputReader.readLine();
-        System.out.print(CYAN + "Enter password: " + RESET);
-        String password = inputReader.readLine();
 
-        if (authUtil.authenticate(username, password)) {
-            currentUser = userRepository.getUserByUsername(username);
-            System.out.println(GREEN + "\nLogin successful!" + RESET);
-        } else {
-            System.out.println(RED + "\nInvalid credentials. Please try again." + RESET);
+    /**
+     * Processes the update of an existing user.
+     *
+     * @param userIdToUpdate user id to update
+     * @param request     the UpdateRequestDTO containing the updated user information
+     * @return the updated user as a UserDTO
+     * @throws UserNotFoundException if the user is not found
+     */
+    private UserDTO processUpdatingUser(Long userIdToUpdate, UpdateUserRequestDTO request) throws UserNotFoundException {
+        try {
+            User user = userRepository.getUserById(userIdToUpdate).orElseThrow(() -> new UserNotFoundException("User not found"));
+            user.setUsername(request.username());
+            user.setPassword(request.password());
+            return userMapper.toDTO(userRepository.updateUser(user));
+        } catch (UserNotFoundException e) {
+            throw new UserNotFoundException("User not found by ID: " + userIdToUpdate);
         }
     }
 
     /**
-     * Displays a list of all users retrieved from the user repository.
-     * If no users are found, it prints a message indicating that no users are available.
-     * Otherwise, it prints the ID and username of each user.
+     * Processes the deletion of a user.
+     *
+     * @param userIdToDelete the ID of the user to delete
+     * @param currentUser    the current authenticated user
+     * @param req            the HttpServletRequest object
+     * @throws UserNotFoundException  if the user is not found
      */
-    @Override
-    public void viewAllUsers() {
-        List<User> users = userRepository.getAllUsers();
-        if (users.isEmpty()) {
-            System.out.println(YELLOW + "\nNo users available." + RESET);
-        } else {
-            System.out.println(BLUE + "\n--- List of All Users ---\n" + RESET);
-            System.out.println(CYAN + "----------------------------" + RESET);
-            for (User user : users) {
-                System.out.println(PURPLE + user.getId() + " " + user.getUsername() + RESET);
-                System.out.println(CYAN + "----------------------------" + RESET);
+    public void processUserDeletion(Long userIdToDelete, UserDTO currentUser, HttpServletRequest req) throws UserNotFoundException {
+        try {
+            userRepository.deleteUser(userIdToDelete);
+            if (currentUser.id().equals(userIdToDelete)) {
+                req.getSession().invalidate();
             }
+        } catch (UserNotFoundException e) {
+            throw new UserNotFoundException("User not found by ID: " + userIdToDelete);
         }
-    }
-
-    /**
-     * Retrieves a user by their unique identifier.
-     * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID
-     * @throws UserNotFoundException if the user with the given ID is not found
-     */
-    @Override
-    public User getUserById(Long userId) throws UserNotFoundException {
-        return userRepository.getUserById(userId);
-    }
-
-    /**
-     * Retrieves the currently logged-in user.
-     * @return the current user, or null if no user is currently logged in
-     */
-    @Override
-    public User getCurrentUser() {
-        return currentUser;
-    }
-
-    /**
-     * Sets the current logged-in user.
-     * @param user the user to set as the current user
-     */
-    public void setCurrentUser(User user) {
-        currentUser = user;
     }
 }

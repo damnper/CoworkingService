@@ -1,7 +1,10 @@
 package ru.y_lab.service;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import ru.y_lab.exception.UserNotFoundException;
-import ru.y_lab.model.User;
+
+import java.io.IOException;
 
 /**
  * The UserService interface defines methods for managing users.
@@ -10,32 +13,49 @@ public interface UserService {
 
     /**
      * Registers a new user.
-     * @return the registered user
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    User registerUser();
+    void registerUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Logs in an existing user.
-     * @throws UserNotFoundException if the user is not found
+     * Logs in a user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    void loginUser() throws UserNotFoundException;
+    void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Retrieves the currently logged-in user.
-     * @return the current user
+     * Retrieves a user by their ID.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    User getCurrentUser();
+    void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Displays information about all registered users.
+     * Retrieves all users.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    void viewAllUsers();
+    void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException;
 
     /**
-     * Retrieves a user by their unique identifier.
-     * @param userId the ID of the user to retrieve
-     * @return the user with the specified ID
-     * @throws UserNotFoundException if the user with the given ID is not found
+     * Updates the information of an existing user.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
      */
-    User getUserById(Long userId) throws UserNotFoundException;
+    void updateUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
+
+    /**
+     * Deletes a user by their unique identifier.
+     *
+     * @param req  the HttpServletRequest object
+     * @param resp the HttpServletResponse object
+     */
+    void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
 }

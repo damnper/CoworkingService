@@ -1,519 +1,1206 @@
 package ru.y_lab.service;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import ru.y_lab.exception.BookingConflictException;
+import ru.y_lab.dto.BookingDTO;
+import ru.y_lab.dto.BookingWithOwnerResourceDTO;
+import ru.y_lab.dto.UpdateBookingRequestDTO;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomBookingMapper;
+import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.BookingRepository;
+import ru.y_lab.repo.ResourceRepository;
+import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.impl.BookingServiceImpl;
-import ru.y_lab.ui.BookingUI;
-import ru.y_lab.util.InputReader;
+import ru.y_lab.util.AuthenticationUtil;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.Collections;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static ru.y_lab.constants.ColorTextCodes.*;
 
-/**
- * Unit tests for the BookingServiceImpl class.
- */
-@DisplayName("Unit Tests for BookingServiceImplTest")
-public class BookingServiceImplTest {
+@DisplayName("BookingServiceImpl Tests - addBooking")
+class BookingServiceImplTest {
+
     @Mock
-    private InputReader inputReader;
+    private AuthenticationUtil authUtil;
+
+    @Mock
+    private CustomBookingMapper bookingMapper;
+
+    @Mock
+    private CustomDateTimeMapper dateTimeMapper;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ResourceRepository resourceRepository;
 
     @Mock
     private BookingRepository bookingRepository;
 
     @Mock
-    private UserService userService;
+    private HttpServletRequest req;
 
     @Mock
-    private ResourceService resourceService;
+    private HttpServletResponse resp;
 
-    @Mock
-    private BookingUI bookingUI;
-
+    @InjectMocks
     private BookingServiceImpl bookingService;
 
-    /**
-     * Sets up the test environment by initializing mocks and creating a new BookingServiceImpl instance.
-     */
+    private StringWriter stringWriter;
+    private PrintWriter writer;
+
     @BeforeEach
-    public void setUp() {
+    void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
-        bookingService = new BookingServiceImpl(inputReader, bookingRepository, userService, resourceService, bookingUI);
+        bookingService = new BookingServiceImpl(authUtil, bookingMapper, dateTimeMapper, userRepository, resourceRepository, bookingRepository);
+
+        stringWriter = new StringWriter();
+        writer = new PrintWriter(stringWriter);
+        when(resp.getWriter()).thenReturn(writer);
     }
 
     /**
-     * Test case for adding a booking successfully without any conflicts.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
+     * Test for successfully adding a booking.
+     * This test verifies that a booking is successfully added and a success response is sent.
      */
     @Test
-    @DisplayName("Test Adding Booking Successfully")
-    public void testAddBookingSuccessfully() throws ResourceNotFoundException {
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
+    @DisplayName("Add Booking")
+    void addBooking() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1).plusHours(1);
+        LocalDateTime endTime = LocalDateTime.now().plusDays(1).plusHours(2);
+        long epochMilli = startTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        long endMilli = endTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        Booking booking = Booking.builder()
+                .userId(currentUser.id())
+                .resourceId(resource.getId())
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
+        BookingDTO bookingDTO = new BookingDTO(1L, 1L, 1L, startTime.toString(), endTime.toString());
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(resourceId), date.toString(), startTime.toString(), endTime.toString());
-        when(resourceService.getResourceById(resourceId)).thenReturn(new Resource(resourceId, 1L, "Resource Name", "Workspace"));
-        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Collections.emptyList());
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceId\": 1, \"startTime\": " + epochMilli + ", \"endTime\": " + endMilli + "}")));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(dateTimeMapper.toLocalDateTime(anyLong())).thenAnswer(invocation -> LocalDateTime.ofEpochSecond(invocation.getArgument(0), 0, ZoneOffset.UTC));
+        when(bookingRepository.getBookingsByResourceId(1L)).thenReturn(Optional.of(List.of()));
+        when(bookingRepository.saveBooking(any(Booking.class))).thenReturn(booking);
+        when(bookingMapper.toDTO(any(Booking.class))).thenReturn(bookingDTO);
 
-        bookingService.addBooking();
+        bookingService.addBooking(req, resp);
 
-        verify(bookingRepository).addBooking(any(Booking.class));
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(201, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"id\":1,\"userId\":1,\"resourceId\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for adding a booking that conflicts with an existing booking.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
-     */
+    * Test for unauthorized access.
+    * This test verifies that an error response is sent when the user is not authorized.
+    */
     @Test
-    @DisplayName("Test Adding Booking Conflict")
-    public void testAddBookingConflict() throws ResourceNotFoundException {
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
-        LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
-        LocalDateTime endDateTime = LocalDateTime.of(date, endTime);
-        Booking existingBooking = new Booking(1L, 1L, resourceId, startDateTime.minusMinutes(30), endDateTime.plusMinutes(30));
+    @DisplayName("Unauthorized Access")
+    void addBooking_unauthorized() throws IOException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Unauthorized"));
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(resourceId), date.toString(), startTime.toString(), endTime.toString());
-        when(resourceService.getResourceById(resourceId)).thenReturn(new Resource(resourceId, 1L, "Resource Name", "Workspace"));
-        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Collections.singletonList(existingBooking));
+        bookingService.addBooking(req, resp);
 
-        BookingConflictException exception = assertThrows(BookingConflictException.class, () -> bookingService.addBooking());
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
 
-        assertEquals("Booking conflict: The resource is already booked during this time.", exception.getMessage());
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for cancelling a booking successfully.
+     * Test for handling resource not found.
+     * This test verifies that an error response is sent when the resource is not found.
      */
     @Test
-    @DisplayName("Test Cancelling Booking Successfully")
-    public void testCancelBookingSuccessfully() {
-        Long bookingId = 1L;
-        User currentUser = new User(1L, "user-name", "password", "USER");
-        Booking booking = new Booking(bookingId, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
+    @DisplayName("Resource Not Found Add Booking")
+    void addBooking_resourceNotFound() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1).plusHours(1);
+        LocalDateTime endTime = LocalDateTime.now().plusDays(1).plusHours(2);
+        long startEpoch = startTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        long endEpoch = endTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId));
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.of(booking));
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceId\": 1, \"startTime\": " + startEpoch + ", \"endTime\": " + endEpoch + "}")));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
-        bookingService.cancelBooking();
+        bookingService.addBooking(req, resp);
 
-        verify(bookingRepository).deleteBooking(bookingId);
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by resource name: 1\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for cancelling a booking that does not exist.
+     * Test for handling general exceptions.
+     * This test verifies that an error response is sent when a general exception occurs.
      */
     @Test
-    @DisplayName("Test Cancelling Booking Not Found")
-    public void testCancelBookingNotFound() {
-        Long bookingId = 1L;
+    @DisplayName("Handle General Exception")
+    void addBooking_generalException() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1).plusHours(1);
+        LocalDateTime endTime = LocalDateTime.now().plusDays(1).plusHours(2);
+        long startEpoch = startTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        long endEpoch = endTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId));
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.empty());
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceId\": 1, \"startTime\": " + startEpoch + ", \"endTime\": " + endEpoch + "}")));
+        when(resourceRepository.getResourceById(1L)).thenThrow(new RuntimeException("Unexpected error"));
 
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        PrintStream originalSystemOut = System.out;
-        System.setOut(new PrintStream(outContent));
+        bookingService.addBooking(req, resp);
 
-        BookingNotFoundException thrownException = assertThrows(BookingNotFoundException.class, () -> bookingService.cancelBooking());
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(500, statusCaptor.getValue());
 
-        assertEquals(YELLOW + "Booking with ID " + bookingId + " not found" + RESET, thrownException.getMessage());
-
-        String expectedOutput = CYAN + "Enter booking ID: " + RESET;
-        assertEquals(expectedOutput, outContent.toString());
-
-        System.setOut(originalSystemOut);
-
-        verify(bookingRepository, never()).deleteBooking(anyLong());
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unexpected error\"}", stringWriter.toString().trim());
     }
-    /**
-     * Test case for viewing bookings of the current user.
-     *
-     * @throws ResourceNotFoundException if resource is not found
-     * @throws UserNotFoundException if user is not found
-     */
+
     @Test
-    @DisplayName("Test Viewing User Bookings")
-    public void testViewUserBookings() throws ResourceNotFoundException, UserNotFoundException {
-        User currentUser = new User(1L, "user-name", "password", "USER");
-        Resource resource = new Resource(2L, 1L, "Resource Name", "Workspace");
-        List<Booking> userBookings = List.of(
-                new Booking(3L, 1L, resource.getId(), LocalDateTime.now(), LocalDateTime.now().plusHours(1))
+    @DisplayName("Get Booking By ID - Success")
+    void getBookingById_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        User user = User.builder().id(1L).username("user").password("password").build();
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(user.getId())
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+        BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = new BookingWithOwnerResourceDTO(
+                user.getId(),
+                resource.getId(),
+                booking.getId(),
+                user.getUsername(),
+                resource.getName(),
+                resource.getType(),
+                booking.getStartTime().toLocalDate().toString(),
+                booking.getStartTime().toLocalTime().toString(),
+                booking.getEndTime().toLocalTime().toString()
         );
 
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.getBookingsByUserId(currentUser.getId())).thenReturn(userBookings);
-        when(userService.getUserById(currentUser.getId())).thenReturn(currentUser);
-        when(resourceService.getResourceById(resource.getId())).thenReturn(resource);
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(booking));
+        when(resourceRepository.getResourceById(booking.getResourceId())).thenReturn(Optional.of(resource));
+        when(userRepository.getUserById(booking.getUserId())).thenReturn(Optional.of(user));
+        when(bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user)).thenReturn(bookingWithOwnerResourceDTO);
 
-        bookingService.viewUserBookings();
+        bookingService.getBookingById(req, resp);
 
-        verify(bookingRepository).getBookingsByUserId(currentUser.getId());
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}", stringWriter.toString().trim());
     }
-    /**
-     * Test case for viewing available booking slots for a resource.
-     */
+
     @Test
-    @DisplayName("Test Viewing Available Slots")
-    public void testViewAvailableSlots() {
-        Long resourceId = 2L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startOfDay = LocalTime.of(9, 0);
-        List<Booking> bookings = List.of(
-                new Booking(3L, 1L, resourceId, LocalDateTime.of(date, startOfDay.plusHours(1)), LocalDateTime.of(date, startOfDay.plusHours(2))),
-                new Booking(4L, 2L, resourceId, LocalDateTime.of(date, startOfDay.plusHours(4)), LocalDateTime.of(date, startOfDay.plusHours(5)))
+    @DisplayName("Get Booking By ID - Booking Not Found")
+    void getBookingById_bookingNotFound() throws IOException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Booking not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - Resource Not Found")
+    void getBookingById_resourceNotFound() throws IOException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(booking));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - User Not Found")
+    void getBookingById_userNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(booking));
+        when(resourceRepository.getResourceById(booking.getResourceId())).thenReturn(Optional.of(resource));
+        when(userRepository.getUserById(booking.getUserId())).thenReturn(Optional.empty());
+
+        bookingService.getBookingById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - Unauthorized")
+    void getBookingById_unauthorized() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Unauthorized"));
+
+        bookingService.getBookingById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - General Exception")
+    void getBookingById_generalException() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new RuntimeException("Internal server error"));
+
+        bookingService.getBookingById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_BAD_REQUEST, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get User Bookings - Success")
+    void getUserBookings_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        User user = User.builder().id(1L).username("user").password("password").build();
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(user.getId())
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+        BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = new BookingWithOwnerResourceDTO(
+                user.getId(),
+                resource.getId(),
+                booking.getId(),
+                user.getUsername(),
+                resource.getName(),
+                resource.getType(),
+                booking.getStartTime().toLocalDate().toString(),
+                booking.getStartTime().toLocalTime().toString(),
+                booking.getEndTime().toLocalTime().toString()
         );
 
-        when(inputReader.readLine()).thenReturn(String.valueOf(resourceId), date.toString());
-        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(bookings);
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(bookingRepository.getBookingsByUserId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(bookingMapper.toBookingWithOwnerResourceDTO(any(Booking.class), any(Resource.class), any(User.class))).thenReturn(bookingWithOwnerResourceDTO);
 
-        bookingService.viewAvailableSlots();
+        bookingService.getUserBookings(req, resp);
 
-        verify(bookingRepository).getBookingsByResourceId(resourceId);
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for updating a booking successfully without conflicts.
-     */
     @Test
-    @DisplayName("Test Updating Booking Successfully")
-    public void testUpdateBookingSuccessfully() {
-        Long bookingId = 5L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime newStartTime = LocalTime.of(12, 0);
-        LocalTime newEndTime = LocalTime.of(13, 0);
-        Booking existingBooking = new Booking(bookingId, 1L, 2L, LocalDateTime.of(date, LocalTime.of(10, 0)), LocalDateTime.of(date, LocalTime.of(11, 0)));
+    @DisplayName("Get User Bookings - No Bookings Found")
+    void getUserBookings_noBookingsFound() throws IOException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId), date.toString(), newStartTime.toString(), newEndTime.toString());
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.of(existingBooking));
-        when(bookingRepository.getBookingsByResourceId(existingBooking.getResourceId())).thenReturn(Collections.singletonList(existingBooking));
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(bookingRepository.getBookingsByUserId(1L)).thenReturn(Optional.empty());
 
-        bookingService.updateBooking();
+        bookingService.getUserBookings(req, resp);
 
-        verify(bookingRepository).updateBooking(any(Booking.class));
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User 1 have not any booking\"}", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for updating a booking that conflicts with another booking.
-     */
     @Test
-    @DisplayName("Test Updating Booking Conflict")
-    public void testUpdateBookingConflict() {
-        Long bookingId = 6L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime newStartTime = LocalTime.of(10, 0);
-        LocalTime newEndTime = LocalTime.of(11, 0);
-        Booking existingBooking = new Booking(bookingId, 1L, 2L, LocalDateTime.of(date, LocalTime.of(10, 0)), LocalDateTime.of(date, LocalTime.of(11, 0)));
-        Booking conflictingBooking = new Booking(7L, 2L, 2L, LocalDateTime.of(date, LocalTime.of(10, 0)), LocalDateTime.of(date, LocalTime.of(12, 0)));
+    @DisplayName("Get User Bookings - Resource Not Found")
+    void getUserBookings_resourceNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId), date.toString(), newStartTime.toString(), newEndTime.toString());
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.of(existingBooking));
-        when(bookingRepository.getBookingsByResourceId(existingBooking.getResourceId())).thenReturn(List.of(existingBooking, conflictingBooking));
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(bookingRepository.getBookingsByUserId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(User.builder().id(1L).username("user").password("password").build()));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
-        BookingConflictException exception = assertThrows(BookingConflictException.class, () -> bookingService.updateBooking());
+        bookingService.getUserBookings(req, resp);
 
-        assertEquals("Booking conflict: The resource is already booked during this time.", exception.getMessage());
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for updating a booking that does not exist.
-     */
     @Test
-    @DisplayName("Test Updating Booking Not Found")
-    public void testUpdateBookingNotFound() {
-        Long bookingId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime newStartTime = LocalTime.of(12, 0);
-        LocalTime newEndTime = LocalTime.of(11, 0);
+    @DisplayName("Get User Bookings - User Not Found")
+    void getUserBookings_userNotFound() throws IOException, UserNotFoundException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
 
-        when(userService.getCurrentUser()).thenReturn(new User(1L, "user-name", "password", "USER"));
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId), date.toString(), newStartTime.toString(), newEndTime.toString());
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(bookingRepository.getBookingsByUserId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(BookingNotFoundException.class, () -> bookingService.updateBooking());
+        bookingService.getUserBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User not found by ID: 1\"}", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for getting booking date time successfully when adding a new booking.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
-     */
     @Test
-    @DisplayName("Test Getting Booking Date Time Successfully")
-    public void testGetBookingDateTime_SuccessfulBooking() throws ResourceNotFoundException {
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
+    @DisplayName("Get User Bookings - Unauthorized")
+    void getUserBookings_unauthorized() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Unauthorized"));
 
-        when(inputReader.readLine()).thenReturn(date.toString(), startTime.toString(), endTime.toString());
-        when(resourceService.getResourceById(resourceId)).thenReturn(new Resource(resourceId, 1L, "Resource Name", "Workspace"));
-        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Collections.emptyList());
+        bookingService.getUserBookings(req, resp);
 
-        LocalDateTime[] result = bookingService.getBookingDateTime(resourceId, false);
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, statusCaptor.getValue());
 
-        assertNotNull(result);
-        assertEquals(date.atTime(startTime), result[0]);
-        assertEquals(date.atTime(endTime), result[1]);
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for getting booking date time with invalid time format.
-     */
     @Test
-    @DisplayName("Test Getting Booking Date Time with Invalid Time Format")
-    public void testGetBookingDateTime_InvalidTimeFormat() {
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
+    @DisplayName("Get User Bookings - General Exception")
+    void getUserBookings_generalException() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new RuntimeException("Internal server error"));
 
-        // Моделируем поведение inputReader для предоставления тестовых данных
-        when(inputReader.readLine()).thenReturn(date.toString(), "invalid-time", "11:00", "12:00");
+        bookingService.getUserBookings(req, resp);
 
-        // Каптурируем вывод в System.out
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        PrintStream originalSystemOut = System.out;
-        System.setOut(new PrintStream(outContent));
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_BAD_REQUEST, statusCaptor.getValue());
 
-        // Выполняем метод, который проверяется
-        LocalDateTime[] dateTimes = bookingService.getBookingDateTime(resourceId, false);
-
-        // Проверяем, что вернулись ожидаемые значения LocalDateTime
-        LocalDateTime expectedStartDateTime = LocalDateTime.of(date, LocalTime.of(11, 0));
-        LocalDateTime expectedEndDateTime = LocalDateTime.of(date, LocalTime.of(12, 0));
-        assertArrayEquals(new LocalDateTime[]{expectedStartDateTime, expectedEndDateTime}, dateTimes);
-
-        // Проверяем, что ошибка формата времени была выведена в консоль
-        String expectedOutput = CYAN + "Enter start time (HH:MM): " + RESET +
-                RED + "Invalid time format. Please use HH:MM format." + RESET + System.lineSeparator() +
-                CYAN + "Enter start time (HH:MM): " + RESET;
-
-        assertTrue(outContent.toString().contains(expectedOutput));
-
-        // Восстанавливаем System.out
-        System.setOut(originalSystemOut);
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for getting booking date time when viewing available slots.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
-     */
     @Test
-    @DisplayName("Test Getting Booking Date Time When Viewing Available Slots")
-    public void testGetBookingDateTime_ViewAvailableSlots() throws ResourceNotFoundException {
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
-
-        when(inputReader.readLine()).thenReturn(date.toString(), startTime.toString(), endTime.toString());
-        when(resourceService.getResourceById(resourceId)).thenReturn(new Resource(resourceId, 1L, "Resource Name", "Workspace"));
-        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Collections.emptyList());
-
-        LocalDateTime[] result = bookingService.getBookingDateTime(resourceId, true);
-
-        assertNotNull(result);
-        assertEquals(date.atTime(startTime), result[0]);
-        assertEquals(date.atTime(endTime), result[1]);
-        verify(bookingRepository).getBookingsByResourceId(resourceId);
-    }
-
-    /**
-     * Test case for managing bookings when user is not logged in.
-     */
-    @Test
-    @DisplayName("Test Managing Bookings When User is Not Logged In")
-    public void testManageBookings_UserNotLoggedIn() {
-        when(userService.getCurrentUser()).thenReturn(null);
-
-        assertThrows(UserNotFoundException.class, () -> bookingService.manageBookings());
-    }
-
-    /**
-     * Test case for managing bookings: adding a new booking.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
-     */
-    @Test
-    @DisplayName("Test Managing Bookings: Adding a Booking")
-    public void testManageBookings_AddBooking() throws ResourceNotFoundException {
-        User currentUser = new User(1L, "username", "password", "USER");
-        Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        LocalTime startTime = LocalTime.of(10, 0);
-        LocalTime endTime = LocalTime.of(11, 0);
-
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(inputReader.getUserChoice()).thenReturn(1, 0);
-        when(inputReader.readLine()).thenReturn(String.valueOf(resourceId), date.toString(), startTime.toString(), endTime.toString());
-        when(resourceService.getResourceById(resourceId)).thenReturn(new Resource(resourceId, 1L, "name", "type"));
-
-        bookingService.manageBookings();
-
-        verify(inputReader, times(2)).getUserChoice();
-        verify(inputReader, times(4)).readLine();
-        verify(resourceService).getResourceById(resourceId);
-    }
-
-    /**
-     * Test case for managing bookings: cancelling a booking.
-     */
-    @Test
-    @DisplayName("Test Managing Bookings: Cancelling a Booking")
-    public void testManageBookings_CancelBooking() {
-        User currentUser = new User(1L, "username", "password", "USER");
-        Long bookingId = 1L;
-        LocalDateTime startTime = LocalDateTime.of(2024, 6, 20, 10, 0);
-        LocalDateTime endTime = LocalDateTime.of(2024, 6, 20, 11, 0);
-        Booking booking = new Booking(bookingId, 1L, 1L, startTime, endTime);
-
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.of(booking));
-        when(inputReader.getUserChoice()).thenReturn(2, 0);
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId));
-
-        bookingService.manageBookings();
-
-        verify(inputReader, times(2)).getUserChoice();
-        verify(inputReader, times(1)).readLine();
-        verify(bookingRepository).deleteBooking(bookingId);
-    }
-
-    /**
-     * Test case for managing bookings: viewing user's bookings.
-     *
-     * @throws ResourceNotFoundException if resource is not found
-     * @throws UserNotFoundException if user is not found
-     */
-    @Test
-    @DisplayName("Test Managing Bookings: Viewing User's Bookings")
-    public void testManageBookings_ViewUserBookings() throws UserNotFoundException, ResourceNotFoundException {
-        User currentUser = new User(1L, "username", "password", "USER");
-        Booking booking1 = new Booking(1L, 1L, 1L, LocalDateTime.of(2023, 6, 23, 10, 0), LocalDateTime.of(2023, 6, 23, 11, 0));
-        Booking booking2 = new Booking(2L, 1L, 2L, LocalDateTime.of(2023, 6, 24, 12, 0), LocalDateTime.of(2023, 6, 24, 13, 0));
-        List<Booking> userBookings = Arrays.asList(booking1, booking2);
-        Resource resource = new Resource(1L, 1L, "name", "type");
-
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.getBookingsByUserId(currentUser.getId())).thenReturn(userBookings);
-        when(userService.getUserById(currentUser.getId())).thenReturn(currentUser);
-        when(resourceService.getResourceById(anyLong())).thenReturn(resource);
-        when(inputReader.readLine()).thenReturn("3", "0");
-
-        bookingService.manageBookings();
-
-    }
-
-    /**
-     * Test case for managing bookings: updating a booking.
-     */
-    @Test
-    @DisplayName("Test Managing Bookings: Updating a Booking")
-    public void testManageBookings_UpdateBooking() {
-        User currentUser = new User(1L, "username", "password", "USER");
-        Long bookingId = 1L;
-        Booking existingBooking = new Booking(bookingId, 1L, 1L, LocalDateTime.of(2023, 6, 23, 9, 0), LocalDateTime.of(2023, 6, 23, 10, 0));
-        List<Booking> userBookings = List.of(
-                new Booking(2L, 1L, 1L, LocalDateTime.of(2023, 6, 23, 10, 0), LocalDateTime.of(2023, 6, 23, 11, 0)),
-                new Booking(3L, 1L, 2L, LocalDateTime.of(2023, 6, 24, 12, 0), LocalDateTime.of(2023, 6, 24, 13, 0))
+    @DisplayName("Get All Bookings - Success")
+    void getAllBookings_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        User user = User.builder().id(1L).username("user").password("password").build();
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(user.getId())
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+        BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = new BookingWithOwnerResourceDTO(
+                user.getId(),
+                resource.getId(),
+                booking.getId(),
+                user.getUsername(),
+                resource.getName(),
+                resource.getType(),
+                booking.getStartTime().toLocalDate().toString(),
+                booking.getStartTime().toLocalTime().toString(),
+                booking.getEndTime().toLocalTime().toString()
         );
 
-        when(bookingRepository.getBookingById(bookingId)).thenReturn(Optional.of(existingBooking));
-        when(bookingRepository.getBookingsByResourceId(existingBooking.getResourceId())).thenReturn(userBookings);
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(inputReader.getUserChoice()).thenReturn(4, 0);
-        when(inputReader.readLine()).thenReturn(String.valueOf(bookingId), "2023-06-23", "09:00", "10:00");
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(bookingRepository.getAllBookings()).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(bookingMapper.toBookingWithOwnerResourceDTO(any(Booking.class), any(Resource.class), any(User.class))).thenReturn(bookingWithOwnerResourceDTO);
 
-        bookingService.manageBookings();
+        bookingService.getAllBookings(req, resp);
 
-        verify(inputReader, times(2)).getUserChoice();
-        verify(inputReader, times(4)).readLine();
-        verify(bookingRepository).updateBooking(any(Booking.class));
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for managing bookings: viewing available booking slots.
-     */
     @Test
-    @DisplayName("Test Managing Bookings: Viewing Available Slots")
-    public void testManageBookings_ViewAvailableSlots() {
-        User currentUser = new User(1L, "username", "password", "USER");
+    @DisplayName("Get All Bookings - No Bookings Found")
+    void getAllBookings_noBookingsFound() throws IOException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(bookingRepository.getAllBookings()).thenReturn(Optional.empty());
+
+        bookingService.getAllBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"There are not any existing booking\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get All Bookings - Resource Not Found")
+    void getAllBookings_resourceNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(bookingRepository.getAllBookings()).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(User.builder().id(1L).username("user").password("password").build()));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getAllBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get All Bookings - User Not Found")
+    void getAllBookings_userNotFound() throws IOException, UserNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(1L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(bookingRepository.getAllBookings()).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getAllBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get All Bookings - Unauthorized")
+    void getAllBookings_unauthorized() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new SecurityException("Unauthorized"));
+
+        bookingService.getAllBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get All Bookings - General Exception")
+    void getAllBookings_generalException() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new RuntimeException("Internal server error"));
+
+        bookingService.getAllBookings(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_BAD_REQUEST, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
+    }
+
+
+    @Test
+    @DisplayName("Get Bookings by User ID - Success")
+    void getBookingsByUserId_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        User user = User.builder().id(2L).username("user").password("password").build();
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(user.getId())
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+        BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = new BookingWithOwnerResourceDTO(
+                user.getId(),
+                resource.getId(),
+                booking.getId(),
+                user.getUsername(),
+                resource.getName(),
+                resource.getType(),
+                booking.getStartTime().toLocalDate().toString(),
+                booking.getStartTime().toLocalTime().toString(),
+                booking.getEndTime().toLocalTime().toString()
+        );
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("userId")).thenReturn("2");
+        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(bookingMapper.toBookingWithOwnerResourceDTO(any(Booking.class), any(Resource.class), any(User.class))).thenReturn(bookingWithOwnerResourceDTO);
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"userId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by User ID - No Bookings Found")
+    void getBookingsByUserId_noBookingsFound() throws IOException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("userId")).thenReturn("2");
+        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"There are not any existing booking by user ID: 2\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by User ID - Resource Not Found")
+    void getBookingsByUserId_resourceNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("userId")).thenReturn("2");
+        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.of(User.builder().id(2L).username("user").password("password").build()));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by User ID - User Not Found")
+    void getBookingsByUserId_userNotFound() throws IOException, UserNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("userId")).thenReturn("2");
+        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User not found by ID: 2\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by User ID - Unauthorized")
+    void getBookingsByUserId_unauthorized() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new SecurityException("Unauthorized"));
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by User ID - General Exception")
+    void getBookingsByUserId_generalException() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new RuntimeException("Internal server error"));
+
+        bookingService.getBookingsByUserId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - Success")
+    void getBookingsByResourceId_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        User user = User.builder().id(2L).username("user").password("password").build();
+        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(user.getId())
+                .resourceId(resource.getId())
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+        BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = new BookingWithOwnerResourceDTO(
+                user.getId(),
+                resource.getId(),
+                booking.getId(),
+                user.getUsername(),
+                resource.getName(),
+                resource.getType(),
+                booking.getStartTime().toLocalDate().toString(),
+                booking.getStartTime().toLocalTime().toString(),
+                booking.getEndTime().toLocalTime().toString()
+        );
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(bookingRepository.getBookingsByResourceId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(bookingMapper.toBookingWithOwnerResourceDTO(any(Booking.class), any(Resource.class), any(User.class))).thenReturn(bookingWithOwnerResourceDTO);
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"userId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - No Bookings Found")
+    void getBookingsByResourceId_noBookingsFound() throws IOException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(bookingRepository.getBookingsByResourceId(1L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"There are not any existing booking by user ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - Resource Not Found")
+    void getBookingsByResourceId_resourceNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(bookingRepository.getBookingsByResourceId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.of(User.builder().id(2L).username("user").password("password").build()));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - User Not Found")
+    void getBookingsByResourceId_userNotFound() throws IOException, UserNotFoundException, BookingNotFoundException {
+        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
+        Booking booking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(bookingRepository.getBookingsByResourceId(1L)).thenReturn(Optional.of(List.of(booking)));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.empty());
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"User not found by ID: 2\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - Unauthorized")
+    void getBookingsByResourceId_unauthorized() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new SecurityException("Unauthorized"));
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unauthorized\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Bookings by Resource ID - General Exception")
+    void getBookingsByResourceId_generalException() throws IOException, BookingNotFoundException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenThrow(new RuntimeException("Internal server error"));
+
+        bookingService.getBookingsByResourceId(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Get Available Slots - Success")
+    void getAvailableSlots_success() throws IOException, BookingNotFoundException {
+        UserDTO userDTO = new UserDTO(1L, "user", "password", "USER");
+        LocalDate date = LocalDate.now().plusDays(1);
+        LocalDateTime dateTime = date.atStartOfDay();
+        long dateMilli = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
         Long resourceId = 1L;
-        LocalDate date = LocalDate.of(2023, 6, 20);
 
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(inputReader.getUserChoice()).thenReturn(5,0);
-        when(inputReader.readLine()).thenReturn(String.valueOf(resourceId), date.toString());
+        Booking booking1 = Booking.builder()
+                .id(1L)
+                .userId(userDTO.id())
+                .resourceId(resourceId)
+                .startTime(date.atTime(10, 0))
+                .endTime(date.atTime(11, 0))
+                .build();
+        Booking booking2 = Booking.builder()
+                .id(2L)
+                .userId(userDTO.id())
+                .resourceId(resourceId)
+                .startTime(date.atTime(14, 0))
+                .endTime(date.atTime(15, 0))
+                .build();
 
-        bookingService.manageBookings();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(userDTO);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceId\": 1, \"date\": \"" + dateMilli + "\"}")));
+        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Optional.of(List.of(booking1, booking2)));
+        when(dateTimeMapper.toLocalDate(anyLong())).thenReturn(date);
 
-        verify(inputReader, times(2)).getUserChoice();
-        verify(inputReader, times(2)).readLine();
+        bookingService.getAvailableSlots(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"slotNumber\":1,\"slotStart\":\"09:00:00\",\"slotEnd\":\"10:00:00\"}," +
+                "{\"slotNumber\":2,\"slotStart\":\"11:00:00\",\"slotEnd\":\"14:00:00\"}," +
+                "{\"slotNumber\":3,\"slotStart\":\"15:00:00\",\"slotEnd\":\"18:00:00\"}]", stringWriter.toString().trim());
     }
 
-    /**
-     * Test case for filtering bookings by date.
-     *
-     * @throws ResourceNotFoundException if resource is not found
-     * @throws UserNotFoundException if user is not found
-     */
     @Test
-    @DisplayName("Test Filtering Bookings by Date Successfully")
-    public void testFilterBookings_ByDate_Success() throws UserNotFoundException, ResourceNotFoundException {
-        // Подготовка данных для теста
-        User currentUser = new User(1L, "username", "password", "USER");
-        LocalDate date = LocalDate.of(2023, 6, 23);
-        Resource resource = new Resource(1L, 1L, "Resource Name", "Workspace");
-        Booking booking1 = new Booking(1L, 1L, 1L, LocalDateTime.of(date, LocalTime.of(10, 0)), LocalDateTime.of(date, LocalTime.of(11, 0)));
-        Booking booking2 = new Booking(2L, 1L, 1L, LocalDateTime.of(date, LocalTime.of(12, 0)), LocalDateTime.of(date, LocalTime.of(13, 0)));
-        List<Booking> bookingsByDate = Arrays.asList(booking1, booking2);
+    @DisplayName("Get Available Slots - No Bookings Found")
+    void getAvailableSlots_noBookingsFound() throws IOException, BookingNotFoundException {
+        UserDTO userDTO = new UserDTO(1L, "user", "password", "USER");
+        LocalDate date = LocalDate.now().plusDays(1);
+        LocalDateTime dateTime = date.atStartOfDay();
+        long dateMilli = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        Long resourceId = 1L;
 
-        when(userService.getCurrentUser()).thenReturn(currentUser);
-        when(userService.getUserById(currentUser.getId())).thenReturn(currentUser);
-        when(resourceService.getResourceById(anyLong())).thenReturn(resource);
-        when(inputReader.getUserChoice()).thenReturn(1);
-        when(inputReader.readLine()).thenReturn(date.toString());
-        when(bookingRepository.getAllBookings()).thenReturn(bookingsByDate);
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(userDTO);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceId\": 1, \"date\": \"" + dateMilli + "\"}")));
+        when(bookingRepository.getBookingsByResourceId(resourceId)).thenReturn(Optional.empty());
+        when(dateTimeMapper.toLocalDate(anyLong())).thenReturn(date);
 
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        PrintStream originalSystemOut = System.out;
-        System.setOut(new PrintStream(outputStream));
+        bookingService.getAvailableSlots(req, resp);
 
-        bookingService.filterBookings();
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(HttpServletResponse.SC_NOT_FOUND, statusCaptor.getValue());
 
-        System.setOut(originalSystemOut);
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Booking not found by resource ID: 1\"}", stringWriter.toString().trim());
     }
+
+    @Test
+    @DisplayName("Update Booking - Success")
+    void updateBooking_success() throws IOException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        LocalDateTime originalStartTime = LocalDateTime.now().plusDays(1).plusHours(1);
+        LocalDateTime originalEndTime = LocalDateTime.now().plusDays(1).plusHours(2);
+        Booking existingBooking = Booking.builder()
+                .id(1L)
+                .userId(currentUser.id())
+                .resourceId(1L)
+                .startTime(originalStartTime)
+                .endTime(originalEndTime)
+                .build();
+
+        LocalDateTime newStartTime = originalStartTime.plusHours(1);
+        LocalDateTime newEndTime = originalEndTime.plusHours(1);
+        long newStartEpoch = newStartTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        long newEndEpoch = newEndTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(existingBooking));
+        when(bookingRepository.getBookingsByResourceId(existingBooking.getResourceId())).thenReturn(Optional.of(List.of(existingBooking)));
+        when(authUtil.isUserAuthorizedToAction(currentUser, existingBooking.getUserId())).thenReturn(true);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"startTime\": " + newStartEpoch + ", \"endTime\": " + newEndEpoch + "}")));
+        when(dateTimeMapper.toLocalDateTime(anyLong())).thenAnswer(invocation -> LocalDateTime.ofEpochSecond(invocation.getArgument(0), 0, ZoneOffset.UTC));
+        when(bookingRepository.updateBooking(any(Booking.class))).thenReturn(existingBooking);
+        when(bookingMapper.toDTO(any(Booking.class))).thenReturn(new BookingDTO(existingBooking.getId(), existingBooking.getUserId(), existingBooking.getResourceId(), newStartTime.toString(), newEndTime.toString()));
+
+        bookingService.updateBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(200, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"id\":1,\"userId\":1,\"resourceId\":1,\"startTime\":\"" + newStartTime + "\",\"endTime\":\"" + newEndTime + "\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Update Booking - Booking Not Found")
+    void updateBooking_bookingNotFound() throws IOException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+
+        Booking existingBooking = Booking.builder()
+                .id(1L)
+                .userId(currentUser.id())
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        UpdateBookingRequestDTO updateRequest = new UpdateBookingRequestDTO(
+                existingBooking.getStartTime().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli(),
+                existingBooking.getEndTime().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli()
+        );
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"startTime\": " + updateRequest.startTime() + ", \"endTime\": " + updateRequest.endTime() + "}")));
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.empty());
+
+        bookingService.updateBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Booking not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Update Booking - Unauthorized")
+    void updateBooking_unauthorized() throws IOException, BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking existingBooking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        UpdateBookingRequestDTO updateRequest = new UpdateBookingRequestDTO(
+                existingBooking.getStartTime().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli(),
+                existingBooking.getEndTime().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli()
+        );
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(existingBooking));
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"startTime\": " + updateRequest.startTime() + ", \"endTime\": " + updateRequest.endTime() + "}")));
+        when(authUtil.isUserAuthorizedToAction(currentUser, existingBooking.getUserId())).thenReturn(false);
+
+        bookingService.updateBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Delete Booking - Success")
+    void deleteBooking_success() throws BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking existingBooking = Booking.builder()
+                .id(1L)
+                .userId(currentUser.id())
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(existingBooking));
+        when(authUtil.isUserAuthorizedToAction(currentUser, existingBooking.getUserId())).thenReturn(true);
+
+        bookingService.deleteBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(204, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertTrue(stringWriter.toString().trim().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Delete Booking - Booking Not Found")
+    void deleteBooking_bookingNotFound() throws BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.empty());
+
+        bookingService.deleteBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Booking not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    @Test
+    @DisplayName("Delete Booking - Unauthorized")
+    void deleteBooking_unauthorized() throws BookingNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
+        Booking existingBooking = Booking.builder()
+                .id(1L)
+                .userId(2L)
+                .resourceId(1L)
+                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
+                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
+                .build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("bookingId")).thenReturn("1");
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(existingBooking));
+        when(authUtil.isUserAuthorizedToAction(currentUser, existingBooking.getUserId())).thenReturn(false);
+
+        bookingService.deleteBooking(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
+    }
+
 }

@@ -1,250 +1,247 @@
 package ru.y_lab.service.impl;
 
-import lombok.SneakyThrows;
-import ru.y_lab.exception.BookingConflictException;
-import ru.y_lab.exception.ResourceConflictException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import ru.y_lab.annotation.Loggable;
+import ru.y_lab.dto.*;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomResourceMapper;
 import ru.y_lab.model.Resource;
+import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepository;
+import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.ResourceService;
-import ru.y_lab.service.UserService;
-import ru.y_lab.ui.ResourceUI;
-import ru.y_lab.util.InputReader;
+import ru.y_lab.util.AuthenticationUtil;
 
-import java.util.HashMap;
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
-import static ru.y_lab.constants.ColorTextCodes.*;
+import static jakarta.servlet.http.HttpServletResponse.*;
+import static ru.y_lab.util.RequestUtil.getRequestBody;
+import static ru.y_lab.util.RequestUtil.parseRequest;
+import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
+import static ru.y_lab.util.ResponseUtil.sendSuccessResponse;
+import static ru.y_lab.util.ValidationUtil.validateAddResourceRequest;
+import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
 
 /**
  * The ResourceServiceImpl class provides an implementation of the ResourceService interface.
  * It interacts with the ResourceRepository to perform CRUD operations.
  */
+@Loggable
 public class ResourceServiceImpl implements ResourceService {
 
-    private final InputReader inputReader;
+    private final AuthenticationUtil authUtil;
+    private final CustomResourceMapper resourceMapper;
     private final ResourceRepository resourceRepository;
-    private final UserService userService;
-    private final ResourceUI resourceUI;
-    private boolean running;
+    private final UserRepository userRepository;
 
-    private final Map<Integer, CheckedRunnable> resourceActions = new HashMap<>();
-
-    @FunctionalInterface
-    interface CheckedRunnable {
-        void run() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException, ResourceConflictException;
+    public ResourceServiceImpl() {
+        authUtil = new AuthenticationUtil();
+        resourceMapper = new CustomResourceMapper();
+        resourceRepository = new ResourceRepository();
+        userRepository = new UserRepository();
     }
 
-    /**
-     * Constructs a ResourceServiceImpl with the specified dependencies and initializes the resource actions.
-     * @param inputReader the InputReader instance for reading user input
-     * @param resourceRepository the ResourceRepository instance for accessing resource data
-     * @param userService the UserService instance providing user-related operations
-     * @param resourceUI the ResourceUI instance for displaying resource-related UI components
-     */
-    public ResourceServiceImpl(InputReader inputReader, ResourceRepository resourceRepository, UserService userService, ResourceUI resourceUI) {
-        this.userService = userService;
-        this.inputReader = inputReader;
+    public ResourceServiceImpl(AuthenticationUtil authUtil, CustomResourceMapper resourceMapper, ResourceRepository resourceRepository, UserRepository userRepository) {
+        this.authUtil = authUtil;
+        this.resourceMapper = resourceMapper;
         this.resourceRepository = resourceRepository;
-        this.resourceUI = resourceUI;
-
-        // Initialize the resource action mappings
-        resourceActions.put(1, this::addResource);
-        resourceActions.put(2, this::viewResources);
-        resourceActions.put(3, this::updateResource);
-        resourceActions.put(4, this::deleteResources);
-        resourceActions.put(0, this::exitApplication);
+        this.userRepository = userRepository;
     }
 
     /**
-     * Manages resources by displaying the resource menu and executing the selected action.
-     * Checks if the current user has access to manage resources.
-     * Keeps running and showing the menu until the user decides to exit.
+     * Adds a new resource.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    public void manageResources() {
-        if (checkUserAccess()) return;
-
-        running = true;
-        while (running) {
-            resourceUI.showResourceMenu(userService);
-            int choice = inputReader.getUserChoice();
-            try {
-                running = executeChoice(choice);
-            } catch (Exception e) {
-                System.err.println(RED + "Error: " + e.getMessage() + "\n" + RESET);
-            }
+    public void addResource(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            String requestBody = getRequestBody(req);
+            AddResourceRequestDTO requestDTO = parseRequest(requestBody, AddResourceRequestDTO.class);
+            validateAddResourceRequest(requestDTO);
+            ResourceDTO resourceDTO = processAddResource(requestDTO, currentUser);
+            sendSuccessResponse(resp, 201, resourceDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
         }
     }
 
     /**
      * Retrieves a resource by its unique identifier.
-     * @param resourceId the ID of the resource to retrieve
-     * @return the resource with the specified ID
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    @SneakyThrows
-    public Resource getResourceById(Long resourceId) {
-        Optional<Resource> resourceOptional = resourceRepository.getResourceById(resourceId);
-        return resourceOptional.orElseThrow(() -> new ResourceNotFoundException("Resource with ID " + resourceId + " not found"));
-
-    }
-
-    /**
-     * Displays a list of all resources retrieved from the resource repository.
-     * If no resources are found, it prints a message indicating that no resources are available.
-     * Otherwise, it uses the resource UI to show the available resources.
-     * This method uses @SneakyThrows to automatically handle any thrown exceptions.
-     */
-    @Override
-    @SneakyThrows
-    public void viewResources() {
-        List<Resource> resources = resourceRepository.getAllResources();
-        if (resources.isEmpty()) {
-            System.out.println(YELLOW + "\nNo resources available." + RESET);
-        } else {
-            resourceUI.showAvailableResources(resources, userService);
-        }
-    }
-
-    /**
-     * Adds a new resource based on user input.
-     * Prompts the user to enter the resource name and type.
-     * Builds a Resource object and attempts to add it to the repository.
-     * If a conflict occurs, throws a ResourceConflictException.
-     */
-    @SneakyThrows
-    public void addResource() {
-        System.out.print(CYAN + "Enter resource name: " + RESET);
-        String name = inputReader.readLine();
-        System.out.print(CYAN + "Enter resource type (Workspace/Conference Room): " + RESET);
-        String type = inputReader.readLine();
-
-        Resource resource = Resource.builder()
-                .userId(userService.getCurrentUser().getId())
-                .name(name)
-                .type(type)
-                .build();
-
+    public void getResourceById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            resourceRepository.addResource(resource);
-            System.out.println(GREEN + "Resource added successfully!" + RESET);
-        } catch (Exception e) {
-            throw new ResourceConflictException("Resource conflict: The resource is already exist.");
-        }
-    }
-
-    /**
-     * Updates an existing resource based on user input.
-     * Prompts the user to enter the resource ID, new name, and new type.
-     */
-    @SneakyThrows
-    public void updateResource() {
-        System.out.print(CYAN + "Enter resource ID: " + RESET);
-        Long resourceId = Long.parseLong(inputReader.readLine());
-
-        Resource resource = resourceRepository.getResourceById(resourceId)
-                .orElseThrow(() -> new ResourceNotFoundException(YELLOW + "Resource with ID " + resourceId + " not found" + RESET));
-
-        if (checkResourceAccess(resource, "Permission denied: You can only update your own resources.")) return;
-
-        System.out.print(CYAN + "Enter new resource name: " + RESET);
-        String newName = inputReader.readLine();
-        System.out.print(CYAN + "Enter new resource type: " + RESET);
-        String newType = inputReader.readLine();
-
-        resource.setName(newName);
-        resource.setType(newType);
-
-        resourceRepository.updateResource(resource);
-        System.out.println(GREEN + "Resource updated successfully!" + RESET);
-    }
-
-    /**
-     * Deletes a resource based on user input.
-     * Prompts the user to enter the resource ID.
-     * Attempts to delete the resource if the current user has access rights.
-     */ 
-    public void deleteResources() {
-        System.out.print(CYAN + "Enter resource ID: " + RESET);
-        Long resourceId = Long.parseLong(inputReader.readLine());
-
-        try {
-            Resource resource = resourceRepository.getResourceById(resourceId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Resource with ID " + resourceId + " not found"));
-
-            if (checkResourceAccess(resource, RED + "Permission denied: You can only delete your own resource." + RESET))
-                return;
-
-            resourceRepository.deleteResource(resourceId);
-            System.out.println(GREEN + "\nResource deleted successfully!" + RESET);
+            authUtil.authenticateAndAuthorize(req, null);
+            Long resourceId = Long.valueOf(req.getParameter("resourceId"));
+            Resource resource = resourceRepository.getResourceById(resourceId).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + resourceId));
+            User user = userRepository.getUserById(resource.getUserId()).orElseThrow(() -> new UserNotFoundException("User not found by ID: " + resource.getUserId()));
+            ResourceWithOwnerDTO resourceWithOwnerDTO = resourceMapper.toResourceWithOwnerDTO(resource, user);
+            sendSuccessResponse(resp, HttpServletResponse.SC_OK, resourceWithOwnerDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
         } catch (ResourceNotFoundException e) {
-            System.out.println(RED + "Resource not found: " + e.getMessage() + RESET);
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
         }
     }
 
     /**
-     * Checks if the current user has access to the specified resource.
-     * Prints an error message if the user does not have the necessary permissions.
-     * @param resource the resource to check access for
-     * @param message the error message to display if access is denied
-     * @return true if access is denied, false otherwise
+     * Retrieves a list of all resources.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
-    private boolean checkResourceAccess(Resource resource, String message) {
-        if (!userService.getCurrentUser().getRole().equals("ADMIN") && !resource.getUserId().equals(userService.getCurrentUser().getId())) {
-            System.out.println(message);
-            return true;
+    @Override
+    public void getAllResources(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, null);
+            List<Resource> allResources = resourceRepository.getAllResources();
+            List<ResourceWithOwnerDTO> resourcesWithOwners = allResources.stream()
+                    .map(resource -> {
+                        try {
+                            User user = userRepository.getUserById(resource.getUserId())
+                                    .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + resource.getUserId()));
+                            return resourceMapper.toResourceWithOwnerDTO(resource, user);
+                        } catch (UserNotFoundException e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .toList();
+
+            sendSuccessResponse(resp, 200, resourcesWithOwners);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
         }
-        return false;
     }
 
     /**
-     * Checks if the current user is logged in.
-     * Prints an error message and returns true if the user is not logged in.
-     * @return true if access is denied, false otherwise
+     * Updates an existing resource.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
-    private boolean checkUserAccess() {
-        if (userService.getCurrentUser() == null) {
-            System.out.println(RED + "\nAccess denied. Please log in to manage resources." + RESET);
-            return true;
+    @Override
+    public void updateResource(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long resourceIdToUpdate = Long.valueOf(req.getParameter("resourceId"));
+            Resource resource = resourceRepository.getResourceById(resourceIdToUpdate).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + resourceIdToUpdate));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, resource.getUserId())) throw new SecurityException("Access denied");
+            String requestBody = getRequestBody(req);
+            UpdateResourceRequestDTO requestDTO = parseRequest(requestBody, UpdateResourceRequestDTO.class);
+            validateUpdateResourceRequest(requestDTO);
+            ResourceDTO resourceDTO = processUpdatingResource(resourceIdToUpdate, requestDTO, resource);
+            sendSuccessResponse(resp, 200, resourceDTO);
+        } catch (ResourceNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        return false;
     }
 
     /**
-     * Executes the chosen action based on the user's input.
-     * @param choice the integer corresponding to the user's chosen action
-     * @return true if the application should continue running, false if it should exit
+     * Deletes a resource.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
-    @SneakyThrows
-    private boolean executeChoice(int choice) {
-        CheckedRunnable action = getActionsMap().getOrDefault(choice, this::invalidChoice);
-        action.run();
-        return running;
+    @Override
+    public void deleteResource(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long userIdToDelete = Long.valueOf(req.getParameter("resourceId"));
+            Resource resource = resourceRepository.getResourceById(userIdToDelete).orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + userIdToDelete));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, resource.getUserId())) throw new SecurityException("Access denied");
+
+            processResourceDeletion(userIdToDelete, currentUser, req);
+            sendSuccessResponse(resp, 204);
+        } catch (ResourceNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     /**
-     * Determines the appropriate actions map based on the user's role.
-     * @return the map of actions for the current user
+     * Adds a new resource to the repository.
+     *
+     * @param addResourceRequest the request object containing the details of the resource to be added
+     * @param currentUser the current authenticated user
+     * @return the added resource as a ResourceDTO
      */
-    private Map<Integer, CheckedRunnable> getActionsMap() {
-        return resourceActions;
+    private ResourceDTO processAddResource(AddResourceRequestDTO addResourceRequest, UserDTO currentUser) {
+        Resource resourceDTO = Resource.builder()
+                .userId(currentUser.id())
+                .name(addResourceRequest.name())
+                .type(addResourceRequest.type())
+                .build();
+        Resource resource = resourceRepository.addResource(resourceDTO);
+        return resourceMapper.toDTO(resource);
     }
 
     /**
-     * Sets running to false to exit the application.
+     * Updates an existing resource in the repository.
+     *
+     * @param resourceIdToUpdate the ID of the resource to update
+     * @param request the request object containing the updated details of the resource
+     * @return the updated resource as a ResourceDTO
+     * @throws ResourceNotFoundException if the resource with the given ID is not found
      */
-    private void exitApplication() {
-        running = false;
+    private ResourceDTO processUpdatingResource(Long resourceIdToUpdate, UpdateResourceRequestDTO request, Resource resource) throws ResourceNotFoundException {
+        try {
+            resource.setName(request.name());
+            resource.setType(request.type());
+            return resourceMapper.toDTO(resourceRepository.updateResource(resource));
+        } catch (ResourceNotFoundException e) {
+            throw new ResourceNotFoundException("Resource not found by ID: " + resourceIdToUpdate);
+        }
     }
 
     /**
-     * Displays an invalid choice message.
+     * Deletes a resource from the repository.
+     *
+     * @param resourceIdToDelete the ID of the resource to delete
+     * @param currentUser the current authenticated user
+     * @param req the HttpServletRequest object for invalidating the session if needed
+     * @throws ResourceNotFoundException if the resource with the given ID is not found
      */
-    private void invalidChoice() {
-        System.out.println(RED + "Invalid choice. Please try again." + RESET);
+    private void processResourceDeletion(Long resourceIdToDelete, UserDTO currentUser, HttpServletRequest req) throws ResourceNotFoundException {
+        try {
+            resourceRepository.deleteResource(resourceIdToDelete);
+            if (currentUser.id().equals(resourceIdToDelete)) {
+                req.getSession().invalidate();
+            }
+        } catch (ResourceNotFoundException e) {
+            throw new ResourceNotFoundException("Resource not found by ID: " + resourceIdToDelete);
+        }
     }
+
+
 }

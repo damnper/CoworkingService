@@ -8,6 +8,8 @@ import ru.y_lab.model.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 /**
  * The UserRepository class provides methods to manage users.
  * It stores user data in a HashMap and supports CRUD operations.
@@ -52,7 +54,7 @@ public class UserRepository {
      * @return the user with the specified ID
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public User getUserById(Long id) throws UserNotFoundException {
+    public Optional<User> getUserById(Long id) throws UserNotFoundException {
         String sql = "SELECT * FROM coworking_service.users WHERE id = ?";
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -60,7 +62,8 @@ public class UserRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapRowToUser(rs);
+                    User user = mapRowToUser(rs);
+                    return Optional.of(user);
                 } else {
                     throw new UserNotFoundException("User with ID " + id + " not found");
                 }
@@ -99,18 +102,27 @@ public class UserRepository {
      * @param user the user with updated information
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public void updateUser(User user) throws UserNotFoundException {
-        String sql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, user.getUsername());
-            ps.setString(2, user.getPassword());
-            ps.setString(3, user.getRole());
-            ps.setLong(4, user.getId());
+    public User updateUser(User user) throws UserNotFoundException {
+        String updateSql = "UPDATE coworking_service.users SET username = ?, password = ?, role = ? WHERE id = ?";
+        String selectSql = "SELECT * FROM coworking_service.users WHERE id = ?";
 
-            int rowsAffected = ps.executeUpdate();
-            if (rowsAffected == 0) {
-                throw new UserNotFoundException("User with ID " + user.getId() + " not found");
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement updatePs = connection.prepareStatement(updateSql);
+             PreparedStatement selectPs = connection.prepareStatement(selectSql)) {
+            updatePs.setString(1, user.getUsername());
+            updatePs.setString(2, user.getPassword());
+            updatePs.setString(3, user.getRole());
+            updatePs.setLong(4, user.getId());
+
+            updatePs.executeUpdate();
+
+            selectPs.setLong(1, user.getId());
+            try (ResultSet rs = selectPs.executeQuery()) {
+                if (rs.next()) {
+                    return mapRowToUser(rs);
+                } else {
+                    throw new UserNotFoundException("User with ID " + user.getId() + " not found after update");
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error while updating user", e);
@@ -122,11 +134,11 @@ public class UserRepository {
      * @param id the ID of the user to be deleted
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
-    public void deleteUser(String id) throws UserNotFoundException {
+    public void deleteUser(Long id) throws UserNotFoundException {
         String sql = "DELETE FROM coworking_service.users WHERE id = ?";
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setLong(1, Long.parseLong(id));
+            ps.setLong(1, id);
 
             int rowsAffected = ps.executeUpdate();
             if (rowsAffected == 0) {

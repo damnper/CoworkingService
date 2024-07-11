@@ -99,7 +99,7 @@ public class UserRepositoryTest {
     public void testAddUser() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
-        User retrievedUser = userRepository.getUserById(savedUser.getId());
+        User retrievedUser = userRepository.getUserById(savedUser.getId()).orElse(null);
         assertNotNull(retrievedUser);
         assertEquals(user.getUsername(), retrievedUser.getUsername());
     }
@@ -114,7 +114,7 @@ public class UserRepositoryTest {
     public void testGetUserById() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
-        User retrievedUser = userRepository.getUserById(savedUser.getId());
+        User retrievedUser = userRepository.getUserById(savedUser.getId()).orElse(null);
         assertNotNull(retrievedUser);
         assertEquals(user.getUsername(), retrievedUser.getUsername());
     }
@@ -146,7 +146,7 @@ public class UserRepositoryTest {
         User savedUser = userRepository.addUser(user);
         savedUser.setUsername("updatedUser");
         userRepository.updateUser(savedUser);
-        User retrievedUser = userRepository.getUserById(savedUser.getId());
+        User retrievedUser = userRepository.getUserById(savedUser.getId()).orElse(null);
         assertNotNull(retrievedUser);
         assertEquals("updatedUser", retrievedUser.getUsername());
     }
@@ -159,7 +159,7 @@ public class UserRepositoryTest {
     public void testDeleteUser() {
         User user = new User(null, "testuser", "123456", "USER");
         User savedUser = userRepository.addUser(user);
-        assertDoesNotThrow(() -> userRepository.deleteUser(savedUser.getId().toString()));
+        assertDoesNotThrow(() -> userRepository.deleteUser(savedUser.getId()));
         assertThrows(UserNotFoundException.class, () -> userRepository.getUserById(savedUser.getId()));
     }
 
@@ -214,7 +214,7 @@ public class UserRepositoryTest {
     @Test
     @DisplayName("Test Deleting Non-Existent User")
     public void testDeleteNonExistentUser() {
-        assertThrows(UserNotFoundException.class, () -> userRepository.deleteUser("999"));
+        assertThrows(UserNotFoundException.class, () -> userRepository.deleteUser(999L));
         List<User> allUsers = userRepository.getAllUsers();
         assertEquals(0, allUsers.size());
     }

@@ -1,583 +1,506 @@
 package ru.y_lab.service.impl;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
-import ru.y_lab.exception.*;
+import ru.y_lab.annotation.Loggable;
+import ru.y_lab.dto.*;
+import ru.y_lab.exception.BookingConflictException;
+import ru.y_lab.exception.BookingNotFoundException;
+import ru.y_lab.exception.ResourceNotFoundException;
+import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomBookingMapper;
+import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
+import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.BookingRepository;
+import ru.y_lab.repo.ResourceRepository;
+import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.BookingService;
-import ru.y_lab.service.ResourceService;
-import ru.y_lab.service.UserService;
-import ru.y_lab.ui.BookingUI;
-import ru.y_lab.util.InputReader;
+import ru.y_lab.util.AuthenticationUtil;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
-import static ru.y_lab.constants.ColorTextCodes.*;
+import static jakarta.servlet.http.HttpServletResponse.*;
+import static ru.y_lab.mapper.CustomDateTimeMapper.formatLocalTime;
+import static ru.y_lab.util.RequestUtil.getRequestBody;
+import static ru.y_lab.util.RequestUtil.parseRequest;
+import static ru.y_lab.util.ResponseUtil.sendErrorResponse;
+import static ru.y_lab.util.ResponseUtil.sendSuccessResponse;
+import static ru.y_lab.util.ValidationUtil.*;
 
 /**
  * The BookingServiceImpl class provides an implementation of the BookingService interface.
  * It interacts with the BookingRepository to perform CRUD operations.
  */
+@Loggable
 public class BookingServiceImpl implements BookingService {
 
-    private final InputReader inputReader;
+    private final AuthenticationUtil authUtil;
+    private final CustomBookingMapper bookingMapper;
+    private final CustomDateTimeMapper dateTimeMapper;
+    private final UserRepository userRepository;
+    private final ResourceRepository resourceRepository;
     private final BookingRepository bookingRepository;
-    private final UserService userService;
-    private final ResourceService resourceService;
-    private final BookingUI bookingUI;
-    private boolean running;
 
-    private final Map<Integer, CheckedRunnable> bookingActions = new HashMap<>();
-    private final Map<Integer, CheckedRunnable> filterActions = new HashMap<>();
-
-    @FunctionalInterface
-    interface CheckedRunnable {
-        void run() throws BookingConflictException, ResourceNotFoundException, UserNotFoundException;
+    public BookingServiceImpl() {
+        authUtil = new AuthenticationUtil();
+         bookingMapper = new CustomBookingMapper();
+         dateTimeMapper = new CustomDateTimeMapper();
+         userRepository = new UserRepository();
+         resourceRepository = new ResourceRepository();
+         bookingRepository = new BookingRepository();
     }
 
-    /**
-     * Constructs a BookingServiceImpl instance with the necessary dependencies.
-     *
-     * @param inputReader       the input reader for user interaction
-     * @param bookingRepository the repository managing bookings
-     * @param userService       the service managing user-related operations
-     * @param resourceService   the service managing resource-related operations
-     * @param bookingUI         the UI component for booking interactions
-     */
-    public BookingServiceImpl(InputReader inputReader, BookingRepository bookingRepository, UserService userService, ResourceService resourceService, BookingUI bookingUI) {
-        this.inputReader = inputReader;
+    public BookingServiceImpl(AuthenticationUtil authUtil, CustomBookingMapper bookingMapper, CustomDateTimeMapper dateTimeMapper, UserRepository userRepository, ResourceRepository resourceRepository, BookingRepository bookingRepository) {
+        this.authUtil = authUtil;
+        this.bookingMapper = bookingMapper;
+        this.dateTimeMapper = dateTimeMapper;
+        this.userRepository = userRepository;
+        this.resourceRepository = resourceRepository;
         this.bookingRepository = bookingRepository;
-        this.userService = userService;
-        this.resourceService = resourceService;
-        this.bookingUI = bookingUI;
-
-        bookingActions.put(1, () -> {
-            resourceService.viewResources();
-            this.addBooking();
-        });
-        bookingActions.put(2, this::cancelBooking);
-        bookingActions.put(3, this::viewUserBookings);
-        bookingActions.put(4, this::updateBooking);
-        bookingActions.put(5, this::viewAvailableSlots);
-        bookingActions.put(0, this::exitApplication);
-
-        filterActions.put(1, this::filterByDate);
-        filterActions.put(2, this::filterByUser);
-        filterActions.put(3, this::filterByResource);
-    }
-
-    /**
-     * Manages bookings by interacting with users and resources.
-     * Handles addition, cancellation, updating, and viewing of bookings.
-     * This method continuously prompts the user for actions until the application exits.
-     */
-    @Override
-    @SneakyThrows
-    public void manageBookings() {
-        checkUserAccess();
-
-        running = true;
-        while (running) {
-            bookingUI.showBookingMenu(userService);
-            int choice = inputReader.getUserChoice();
-            try {
-                running = executeChoice(choice);
-            } catch (Exception e) {
-                System.err.println("Error: " + e.getMessage() + "\n");
-            }
-        }
-    }
-
-    /**
-     * Filters bookings based on user input: by date, user ID, or resource ID.
-     * Displays the filter menu and processes the user's choice.
-     */
-    @Override
-    public void filterBookings() {
-        bookingUI.showFilterMenu(userService, inputReader);
-        int choice = inputReader.getUserChoice();
-        try {
-            filterActions.getOrDefault(choice, this::invalidChoice).run();
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage() + "\n");
-        }
     }
 
     /**
      * Adds a new booking based on user input.
      * Prompts the user to enter the resource ID and booking times.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
      */
     @Override
-    @SneakyThrows
-    public void addBooking() {
-        System.out.print(CYAN + "Enter resource ID: " + RESET);
-        Long resourceId = Long.parseLong(inputReader.readLine());
+    public void addBooking(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            String requestBody = getRequestBody(req);
+            AddBookingRequestDTO requestDTO = parseRequest(requestBody, AddBookingRequestDTO.class);
+            validateAddBookingRequest(requestDTO);
+            BookingDTO bookingDTO = processAddBooking(requestDTO, currentUser);
+            sendSuccessResponse(resp, 201, bookingDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        } catch (ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (BookingConflictException e) {
+            sendErrorResponse(resp, SC_CONFLICT, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves a booking by its unique identifier.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void getBookingById(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, null);
+            Long bookingId = Long.valueOf(req.getParameter("bookingId"));
+
+            Booking booking = bookingRepository.getBookingById(bookingId)
+                    .orElseThrow(() -> new BookingNotFoundException("Booking not found by ID: " + bookingId));
+            Resource resource = resourceRepository.getResourceById(booking.getResourceId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + booking.getResourceId()));
+            User user = userRepository.getUserById(booking.getUserId())
+                    .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + booking.getUserId()));
+
+            BookingWithOwnerResourceDTO resourceWithOwnerDTO = bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
+            sendSuccessResponse(resp, SC_OK, resourceWithOwnerDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves all bookings made by the currently authenticated user.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void getUserBookings(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            UserDTO userDTO = authUtil.authenticateAndAuthorize(req, null);
+            List<Booking> allBookings = bookingRepository.getBookingsByUserId(userDTO.id())
+                    .orElseThrow(() -> new BookingNotFoundException("User " + userDTO.id() + " have not any booking"));
+
+            sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookings));
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves all bookings in the system. Only accessible by admin users.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void getAllBookings(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 
         try {
-            resourceService.getResourceById(resourceId);
-        } catch (ResourceNotFoundException e) {
-            System.out.println(RED + "Invalid resource ID. Please try again." + RESET);
-            return;
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            List<Booking> allBookings = bookingRepository.getAllBookings()
+                    .orElseThrow(() -> new BookingNotFoundException("There are not any existing booking"));
+
+            sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookings));
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_BAD_REQUEST, e.getMessage());
         }
-
-        LocalDateTime[] dateTime = getBookingDateTime(resourceId, true);
-
-        LocalDateTime startDateTime = dateTime[0];
-        LocalDateTime endDateTime = dateTime[1];
-
-        // Check for booking conflicts
-        List<Booking> existingBookings = bookingRepository.getBookingsByResourceId(resourceId);
-        for (Booking existingBooking : existingBookings) {
-            if (existingBooking.getStartTime().isBefore(endDateTime) && startDateTime.isBefore(existingBooking.getEndTime())) {
-                throw new BookingConflictException("Booking conflict: The resource is already booked during this time.");
-            }
-        }
-
-        User currentUser = userService.getCurrentUser();
-
-        Booking booking = Booking.builder()
-                .userId(currentUser.getId())
-                .resourceId(resourceId)
-                .startTime(startDateTime)
-                .endTime(endDateTime)
-                .build();
-
-        bookingRepository.addBooking(booking);
-        System.out.println(GREEN + "\nBooking added successfully!" + RESET);
     }
 
     /**
-     * Cancels a booking based on user input.
-     * Prompts the user to enter the booking ID and validates the user's access rights.
+     * Retrieves bookings by a specific date. Only accessible by admin users.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    public void cancelBooking() {
-        System.out.print(CYAN + "Enter booking ID: " + RESET);
-        Long bookingId = Long.parseLong(inputReader.readLine());
+    public void getBookingsByDate(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            String dateParam = req.getParameter("date");
 
-        Booking booking = bookingRepository.getBookingById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException(YELLOW + "Booking with ID " + bookingId + " not found" + RESET));
+            LocalDate date = dateTimeMapper.toLocalDate(Long.valueOf(dateParam));
+            List<Booking> allBookingsByDate = bookingRepository.getBookingsByDate(date)
+                    .orElseThrow(() -> new BookingNotFoundException("There are not any existing booking by date: " + date));
 
-        if (checkBookingAccess(booking, RED + "Permission denied: You can only cancel your own bookings." + RESET))
-            return;
-
-        bookingRepository.deleteBooking(bookingId);
-        System.out.println(GREEN + "\nBooking cancelled successfully!" + RESET);
+            sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookingsByDate));
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
     }
 
     /**
-     * Views bookings of the currently logged-in user.
-     * Retrieves and displays all bookings associated with the user currently logged into the system.
+     * Retrieves bookings by a specific user ID. Only accessible by admin users.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    @SneakyThrows
-    public void viewUserBookings() {
-        Long currentUserId = userService.getCurrentUser().getId();
-        List<Booking> userBookings = bookingRepository.getBookingsByUserId(currentUserId);
+    public void getBookingsByUserId(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            Long userId = Long.valueOf(req.getParameter("userId"));
 
-        if (userBookings.isEmpty()) {
-            System.out.println(YELLOW + "\nNo bookings available." + RESET);
-        } else {
-            bookingUI.showUserBooking(userBookings, userService, resourceService);
+            List<Booking> allBookingsByUserId = bookingRepository.getBookingsByUserId(userId)
+                    .orElseThrow(() -> new BookingNotFoundException("There are not any existing booking by user ID: " + userId));
+
+            sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookingsByUserId));
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
+    }
+
+    /**
+     * Retrieves bookings by a specific resource ID. Only accessible by admin users.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void getBookingsByResourceId(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, "ADMIN");
+            Long resourceId = Long.valueOf(req.getParameter("resourceId"));
+
+            List<Booking> allBookingsByUserId = bookingRepository.getBookingsByResourceId(resourceId)
+                    .orElseThrow(() -> new BookingNotFoundException("There are not any existing booking by user ID: " + resourceId));
+
+            sendSuccessResponse(resp, 200, convertListBookingsToDTO(allBookingsByUserId));
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (UserNotFoundException | ResourceNotFoundException | BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
+    }
+
+    /**
+     * Retrieves available slots for a specific resource and date.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void getAvailableSlots(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            authUtil.authenticateAndAuthorize(req, null);
+            String requestBody = getRequestBody(req);
+            AvailableSlotsRequestDTO availableSlotsRequestDTO = parseRequest(requestBody, AvailableSlotsRequestDTO.class);
+
+            Long resourceId = availableSlotsRequestDTO.resourceId();
+            LocalDate date = dateTimeMapper.toLocalDate(availableSlotsRequestDTO.date());
+
+            List<Booking> bookings = bookingRepository.getBookingsByResourceId(resourceId)
+                    .orElseThrow(() -> new BookingNotFoundException("Booking not found by resource ID: " + resourceId));
+            List<Booking> filteredBookings = filterBookingsByDate(bookings, date);
+
+            List<AvailableSlotDTO> availableSlots = calculateAvailableSlots(filteredBookings);
+            sendSuccessResponse(resp, SC_OK, availableSlots);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
     /**
      * Updates an existing booking based on user input.
-     * Prompts the user to enter the booking ID and new booking times.
-     */
-    @SneakyThrows
-    @Override
-    public void updateBooking() {
-        System.out.print(CYAN + "Enter booking ID: " + RESET);
-        Long bookingId = Long.parseLong(inputReader.readLine());
-
-        Booking booking = bookingRepository.getBookingById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking with ID " + bookingId + " not found"));
-
-        if (checkBookingAccess(booking, "Permission denied: You can only update your own bookings.")) return;
-
-        LocalDateTime[] dateTime = getBookingDateTime(null, false);
-
-        LocalDateTime startDateTime = dateTime[0];
-        LocalDateTime endDateTime = dateTime[1];
-
-        isBookingConflict(booking, bookingId, endDateTime, startDateTime);
-
-        if (endDateTime.isBefore(startDateTime)) {
-            throw new InvalidBookingTimeException("End time must be after start time. Please try again.");
-        }
-
-        booking.setStartTime(startDateTime);
-        booking.setEndTime(endDateTime);
-        bookingRepository.updateBooking(booking);
-        System.out.println(GREEN + "\nBooking updated successfully!" + RESET);
-    }
-
-    /**
-     * Views available slots for booking a resource on a specified date.
-     * Prompts the user to enter the resource ID and date, then displays the available slots.
+     * Validates the user's access rights before updating the booking.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    public void viewAvailableSlots() {
-        System.out.print(CYAN + "Enter resource ID: " + RESET);
-        Long resourceId = Long.parseLong(inputReader.readLine());
-        System.out.print(CYAN + "Enter date (YYYY-MM-DD): " + RESET);
-        String dateStr = inputReader.readLine();
-
-        LocalDate date;
+    public void updateBooking(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            date = LocalDate.parse(dateStr);
-        } catch (DateTimeParseException e) {
-            System.out.println(YELLOW + "Invalid date format. Please use YYYY-MM-DD format." + RESET);
-            return;
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            String requestBody = getRequestBody(req);
+            Long bookingIdToUpdate = Long.valueOf(req.getParameter("bookingId"));
+            Booking booking = bookingRepository.getBookingById(bookingIdToUpdate)
+                    .orElseThrow(() -> new BookingNotFoundException("Booking not found by ID: " + bookingIdToUpdate));
+
+            if (!authUtil.isUserAuthorizedToAction(currentUser, booking.getUserId())) throw new SecurityException("Access denied");
+            UpdateBookingRequestDTO requestDTO = parseRequest(requestBody, UpdateBookingRequestDTO.class);
+            validateUpdateBookingRequest(requestDTO);
+            BookingDTO bookingDTO = processUpdatingBooking(bookingIdToUpdate, requestDTO, booking);
+            sendSuccessResponse(resp, 200, bookingDTO);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
+    }
 
-        List<Booking> availableSlots = getAvailableSlots(resourceId, date);
-        if (availableSlots.isEmpty()) {
-            System.out.println(YELLOW + "\nNo available slots for the selected date." + RESET);
-        } else {
-            System.out.println(BLUE + "\n--- Available Slots for " + date + " ---\n" + RESET);
-            System.out.println(CYAN + "----------------------------" + RESET);
-            int i = 1;
+    /**
+     * Cancels a booking based on user input.
+     * Prompts the user to enter the booking ID and validates the user's access rights.
+     *
+     * @param req  the HttpServletRequest object containing the request details
+     * @param resp the HttpServletResponse object for sending the response
+     */
+    @Override
+    @SneakyThrows
+    public void deleteBooking(HttpServletRequest req, HttpServletResponse resp) {
+        try {
+            UserDTO currentUser = authUtil.authenticateAndAuthorize(req, null);
+            Long bookingIdToDelete = Long.valueOf(req.getParameter("bookingId"));
+            Booking booking = bookingRepository.getBookingById(bookingIdToDelete).orElseThrow(() -> new BookingNotFoundException("Booking not found by ID: " + bookingIdToDelete));
+            if (!authUtil.isUserAuthorizedToAction(currentUser, booking.getUserId())) throw new SecurityException("Access denied");
 
-            for (Booking slot : availableSlots) {
-                String startTime = slot.getStartTime().toLocalTime().toString();
-                String endTime = slot.getEndTime().toLocalTime().toString();
+            processBookingDeletion(bookingIdToDelete);
+            sendSuccessResponse(resp, 204);
+        } catch (SecurityException e) {
+            sendErrorResponse(resp, SC_UNAUTHORIZED, e.getMessage());
+        } catch (BookingNotFoundException e) {
+            sendErrorResponse(resp, SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(resp, SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
 
-                System.out.println(PURPLE + "Slot " + i + ": " + startTime + " - " + endTime  + RESET);
-                System.out.println(CYAN + "----------------------------" + RESET);
-                i++;
+    /**
+     * Processes the addition of a new booking.
+     *
+     * @param addResourceRequest the AddBookingRequestDTO object containing booking details
+     * @param currentUser the currently authenticated user
+     * @return the created BookingDTO object
+     * @throws ResourceNotFoundException if the resource is not found
+     * @throws BookingConflictException if there is a booking conflict
+     */
+    private BookingDTO processAddBooking(AddBookingRequestDTO addResourceRequest, UserDTO currentUser) throws ResourceNotFoundException, BookingConflictException {
+        Long resourceId = addResourceRequest.resourceId();
+        Resource resource = resourceRepository.getResourceById(resourceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resource not found by resource name: " + resourceId));
+
+        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(addResourceRequest.startTime());
+        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(addResourceRequest.endTime());
+
+        validateDateTime(startDateTime, endDateTime);
+        Booking booking = Booking.builder()
+                .userId(currentUser.id())
+                .resourceId(resource.getId())
+                .startTime(startDateTime)
+                .endTime(endDateTime)
+                .build();
+        checkBookingConflicts(booking);
+        Booking savedBooking = bookingRepository.saveBooking(booking);
+        return bookingMapper.toDTO(savedBooking);
+    }
+
+    /**
+     * Checks for booking conflicts with existing bookings.
+     *
+     * @param booking the Booking object to check for conflicts
+     * @throws BookingConflictException if there is a booking conflict
+     */
+    private void checkBookingConflicts(Booking booking) throws BookingConflictException {
+        List<Booking> existingBookings = bookingRepository.getBookingsByResourceId(booking.getResourceId())
+                .orElseThrow(() -> new BookingConflictException("Booking not found by resource ID: " + booking.getResourceId()))
+                .stream()
+                .filter(existingBooking -> !existingBooking.getId().equals(booking.getId()))
+                .toList();
+
+        for (Booking existingBooking : existingBookings) {
+            if (existingBooking.getStartTime().isBefore(booking.getEndTime()) &&
+                    booking.getStartTime().isBefore(existingBooking.getEndTime())) {
+                throw new BookingConflictException("Booking conflict: The resource is already booked during this time.");
             }
         }
     }
 
     /**
-     * Displays available booking slots for a specified resource and date.
-     * Retrieves available slots using the {@link #getAvailableSlots(Long, LocalDate)} method
-     * and prints them to the console.
+     * Filters bookings by a specific date.
      *
-     * @param resourceId the ID of the resource for which available slots are displayed
-     * @param date the date for which available slots are displayed
+     * @param bookings the list of Booking objects to filter
+     * @param date the date to filter bookings by
+     * @return the list of filtered Booking objects
      */
-    private void viewAvailableSlots(Long resourceId, LocalDate date) {
-        List<Booking> availableSlots = getAvailableSlots(resourceId, date);
-        if (availableSlots.isEmpty()) {
-            System.out.println(YELLOW + "\nNo available slots for the selected date." + RESET);
-        } else {
-            System.out.println(BLUE + "\n--- Available Slots for " + date + " ---\n" + RESET);
-            System.out.println(CYAN + "----------------------------" + RESET);
-            int i = 1;
-
-            for (Booking slot : availableSlots) {
-                String startTime = slot.getStartTime().toLocalTime().toString();
-                String endTime = slot.getEndTime().toLocalTime().toString();
-
-                System.out.println(PURPLE + "Slot " + i + ": " + startTime + " - " + endTime + RESET);
-                System.out.println(CYAN + "----------------------------" + RESET);
-                i++;
-            }
-        }
+    private List<Booking> filterBookingsByDate(List<Booking> bookings, LocalDate date) {
+        return bookings.stream()
+                .filter(booking -> booking.getStartTime().toLocalDate().equals(date))
+                .sorted(Comparator.comparing(Booking::getStartTime))
+                .toList();
     }
 
-    /**
-     * Retrieves available booking slots for a resource on a specified date.
-     * Filters existing bookings by date and calculates available time slots.
-     *
-     * @param resourceId the ID of the resource for which available slots are retrieved
-     * @param date the date for which available slots are retrieved
-     * @return a list of Booking objects representing available time slots
-     */
-    private List<Booking> getAvailableSlots(Long resourceId, LocalDate date) {
-        List<Booking> bookings = bookingRepository.getBookingsByResourceId(resourceId);
-        List<Booking> availableSlots = new ArrayList<>();
 
-        List<Booking> filteredBookings = new ArrayList<>();
+    /**
+     * Calculates available slots based on existing bookings.
+     *
+     * @param bookings the list of existing Booking objects
+     * @return the list of AvailableSlotDTO objects representing available slots
+     */
+    private List<AvailableSlotDTO> calculateAvailableSlots(List<Booking> bookings) {
+        List<AvailableSlotDTO> availableSlots = new ArrayList<>();
+        LocalTime startOfDay = LocalTime.of(9, 0);
+        LocalTime endOfDay = LocalTime.of(18, 0);
+        LocalTime slotStart = startOfDay;
+        int i = 1;
+
         for (Booking booking : bookings) {
-            if (booking.getStartTime().toLocalDate().equals(date)) {
-                filteredBookings.add(booking);
-            }
-        }
-
-        filteredBookings.sort(Comparator.comparing(Booking::getStartTime));
-
-        LocalDateTime startOfDay = date.atTime(LocalTime.of(9, 0));
-        LocalDateTime endOfDay = date.atTime(LocalTime.of(18, 0));
-
-        LocalDateTime slotStart = startOfDay;
-
-        for (Booking booking : filteredBookings) {
-            LocalDateTime bookingStart = booking.getStartTime();
-            LocalDateTime bookingEnd = booking.getEndTime();
+            LocalTime bookingStart = booking.getStartTime().toLocalTime();
+            LocalTime bookingEnd = booking.getEndTime().toLocalTime();
 
             if (slotStart.isBefore(bookingStart)) {
-                availableSlots.add(new Booking(null, null, resourceId, slotStart, bookingStart));
-            }
 
+                availableSlots.add(new AvailableSlotDTO(i++,
+                        formatLocalTime(slotStart),
+                        formatLocalTime(bookingStart)));
+            }
             slotStart = bookingEnd;
         }
 
         if (slotStart.isBefore(endOfDay)) {
-            availableSlots.add(new Booking(null, null, resourceId, slotStart, endOfDay));
+            availableSlots.add(new AvailableSlotDTO(i++,
+                    formatLocalTime(slotStart),
+                    formatLocalTime(endOfDay)));
         }
 
         return availableSlots;
     }
 
     /**
-     * Prompts the user to input date, start time, and end time for booking a resource.
-     * Validates input formats and checks if the booking time falls within working hours.
-     * Throws exceptions for invalid input formats or booking times.
+     * Processes the updating of an existing booking.
      *
-     * @param resourceId the ID of the resource to be booked (optional, used for viewing available slots)
-     * @param flagToViewAvailableSlots whether to display available slots before booking
-     * @return an array of LocalDateTime containing startDateTime and endDateTime for the booking
-     * @throws InvalidBookingDataException if the date format is invalid
-     * @throws InvalidBookingTimeException if the time format is invalid or booking time is outside working hours
+     * @param bookingIdToUpdate the ID of the booking to update
+     * @param updateRequest the UpdateBookingRequestDTO object containing updated booking details
+     * @param booking the existing Booking object to update
+     * @return the updated BookingDTO object
+     * @throws BookingConflictException if there is a booking conflict
      */
-    public LocalDateTime[] getBookingDateTime(Long resourceId, Boolean flagToViewAvailableSlots) {
-        LocalDate date = readDate();
-
-        if (flagToViewAvailableSlots) {
-            viewAvailableSlots(resourceId, date);
-        }
-
-        System.out.println(YELLOW + "\nBooking can be made only between 09:00 and 18:00.\n"  + RESET);
-
-        LocalTime startTime = readAndValidateTime("Enter start time (HH:MM): ");
-        LocalTime endTime = readAndValidateTime("Enter end time (HH:MM): ");
-
-        LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
-        LocalDateTime endDateTime = LocalDateTime.of(date, endTime);
-
-        validateBookingTimes(startDateTime, endDateTime);
-
-        return new LocalDateTime[]{startDateTime, endDateTime};
-    }
-
-    /**
-     * Reads and validates the date input by the user.
-     *
-     * @return the validated LocalDate object representing the date
-     */
-    private LocalDate readDate() {
-        System.out.print(CYAN + "Enter date (YYYY-MM-DD): "  + RESET);
-        String dateStr = inputReader.readLine();
+    private BookingDTO processUpdatingBooking(Long bookingIdToUpdate, UpdateBookingRequestDTO updateRequest, Booking booking) throws BookingConflictException {
+        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(updateRequest.startTime());
+        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(updateRequest.endTime());
+        validateDateTime(startDateTime, endDateTime);
 
         try {
-            return LocalDate.parse(dateStr);
-        } catch (DateTimeParseException e) {
-            throw new InvalidBookingDataException("Invalid date format. Please use YYYY-MM-DD format.");
+            booking.setStartTime(startDateTime);
+            booking.setEndTime(endDateTime);
+            checkBookingConflicts(booking);
+            return bookingMapper.toDTO(bookingRepository.updateBooking(booking));
+        } catch (BookingNotFoundException e) {
+            throw new BookingNotFoundException("Booking not found by ID: " + bookingIdToUpdate);
         }
     }
 
     /**
-     * Prompts the user to enter a time and validates the format.
+     * Processes the deletion of an existing booking.
      *
-     * @param prompt the prompt message to display to the user
-     * @return the validated LocalTime object representing the time
-     * @throws InvalidBookingTimeException if the time format is invalid
+     * @param bookingIdToDelete the ID of the booking to delete
      */
-    private LocalTime readAndValidateTime(String prompt) {
-        while (true) {
-            System.out.print(CYAN + prompt  + RESET);
-            String timeStr = inputReader.readLine();
-
-            try {
-                return LocalTime.parse(timeStr);
-            } catch (DateTimeParseException e) {
-                System.out.println(RED + "Invalid time format. Please use HH:MM format." + RESET);
-            }
-        }
-    }
-
-    /**
-     * Validates that the booking start and end times fall within working hours (09:00 - 18:00).
-     *
-     * @param startDateTime the LocalDateTime representing the booking start time
-     * @param endDateTime the LocalDateTime representing the booking end time
-     * @throws InvalidBookingTimeException if the booking time is outside working hours
-     */
-    private void validateBookingTimes(LocalDateTime startDateTime, LocalDateTime endDateTime) {
-        LocalTime startOfDay = LocalTime.of(9, 0);
-        LocalTime endOfDay = LocalTime.of(18, 0);
-
-        if (startDateTime.toLocalTime().isBefore(startOfDay) || endDateTime.toLocalTime().isAfter(endOfDay)) {
-            throw new InvalidBookingTimeException("Booking must be within working hours (09:00 - 18:00).");
-        }
-
-        if (!startDateTime.isBefore(endDateTime)) {
-            System.out.println(RED + "End time must be after start time. Please try again." + RESET);
-        }
-    }
-
-    /**
-     * Retrieves all bookings from the repository that match the specified date.
-     * @param date the date to filter bookings by
-     * @return a list of bookings that occur on the specified date
-     */
-    private List<Booking> getBookingsByDate(LocalDate date) {
-        return bookingRepository.getAllBookings().stream()
-                .filter(booking -> booking.getStartTime().toLocalDate().equals(date))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves all bookings from the repository made by a specific user.
-     * @param userId the ID of the user whose bookings are to be retrieved
-     * @return a list of bookings made by the user with the specified ID
-     */
-    private List<Booking> getBookingsByUser(Long userId) {
-        return bookingRepository.getAllBookings().stream()
-                .filter(booking -> booking.getUserId().equals(userId))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves all bookings from the repository for a specific resource.
-     * @param resourceId the ID of the resource whose bookings are to be retrieved
-     * @return a list of bookings made for the resource with the specified ID
-     */
-    private List<Booking> getBookingsByResource(Long resourceId) {
-        return bookingRepository.getAllBookings().stream()
-                .filter(booking -> booking.getResourceId().equals(resourceId))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Filters bookings by a specified date.
-     * Prompts the user to enter a date and displays bookings for that date.
-     * Handles exceptions for invalid date formats.
-     */
-    private void filterByDate() {
-        System.out.print(CYAN + "Enter date (YYYY-MM-DD): " + RESET);
-        String dateStr = inputReader.readLine();
+    private void processBookingDeletion(Long bookingIdToDelete) {
         try {
-            LocalDate date = LocalDate.parse(dateStr);
-            List<Booking> bookingsByDate = getBookingsByDate(date);
-            bookingUI.printBookings(bookingsByDate, userService, resourceService);
-        } catch (DateTimeParseException | UserNotFoundException | ResourceNotFoundException e) {
-            System.out.println(RED + "Invalid date format. Please use YYYY-MM-DD format." + RESET);
+            bookingRepository.deleteBooking(bookingIdToDelete);
+        } catch (BookingNotFoundException e) {
+            throw new BookingNotFoundException("Booking not found by ID: " + bookingIdToDelete);
         }
     }
 
     /**
-     * Filters bookings by a specified user ID.
-     * Prompts the user to enter a user ID and displays bookings made by that user.
-     * Handles exceptions for user not found scenarios.
+     * Converts a list of Booking objects to a list of BookingWithOwnerResourceDTO objects.
      *
-     * @throws UserNotFoundException if the specified user ID does not exist
-     * @throws ResourceNotFoundException if a referenced resource is not found
+     * @param bookings the list of Booking objects to convert
+     * @return the list of converted BookingWithOwnerResourceDTO objects
+     * @throws UserNotFoundException if the user is not found
+     * @throws ResourceNotFoundException if the resource is not found
      */
-    private void filterByUser() throws UserNotFoundException, ResourceNotFoundException {
-        System.out.print(CYAN + "Enter user ID: " + RESET);
-        Long userId = Long.parseLong(inputReader.readLine());
-        List<Booking> bookingsByUser = getBookingsByUser(userId);
-        bookingUI.printBookings(bookingsByUser, userService, resourceService);
-    }
-
-    /**
-     * Filters bookings by a specified resource ID.
-     * Prompts the user to enter a resource ID and displays bookings for that resource.
-     * Handles exceptions for resource not found scenarios.
-     *
-     * @throws UserNotFoundException if a referenced user is not found
-     * @throws ResourceNotFoundException if the specified resource ID does not exist
-     */
-    private void filterByResource() throws UserNotFoundException, ResourceNotFoundException {
-        System.out.print(CYAN + "Enter resource ID: " + RESET);
-        Long resourceId = Long.parseLong(inputReader.readLine());
-        List<Booking> bookingsByResource = getBookingsByResource(resourceId);
-        bookingUI.printBookings(bookingsByResource, userService, resourceService);
-    }
-
-    /**
-     * Checks if the current user has access to the specified booking.
-     * If the user is not an admin and does not own the booking, displays an error message and returns true.
-     *
-     * @param booking the booking to check access for
-     * @param message the error message to display if access is denied
-     * @return true if access is denied, false otherwise
-     */
-    private boolean checkBookingAccess(Booking booking, String message) {
-        if (!userService.getCurrentUser().getRole().equals("ADMIN") && !booking.getUserId().equals(userService.getCurrentUser().getId())) {
-            System.out.println(RED + message + RESET);
-            return true;
+    private List<BookingWithOwnerResourceDTO> convertListBookingsToDTO(List<Booking> bookings) throws UserNotFoundException, ResourceNotFoundException {
+        List<BookingWithOwnerResourceDTO> bookingWithOwnerResourceDTOList = new ArrayList<>();
+        for (Booking booking : bookings) {
+            User user = userRepository.getUserById(booking.getUserId())
+                    .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + booking.getUserId()));
+            Resource resource = resourceRepository.getResourceById(booking.getResourceId())
+                    .orElseThrow(() -> new UserNotFoundException("Resource not found by ID: " + booking.getResourceId()));
+            BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
+            bookingWithOwnerResourceDTOList.add(bookingWithOwnerResourceDTO);
         }
-        return false;
+        return bookingWithOwnerResourceDTOList;
     }
-
-    /**
-     * Checks if the current user is logged in.
-     * If not, displays an error message and throws a UserNotFoundException.
-     *
-     * @throws UserNotFoundException if no user is currently logged in
-     */
-    private void checkUserAccess() throws UserNotFoundException {
-        if (userService.getCurrentUser() == null) {
-            System.out.println(RED + "\nAccess denied. Please log in to manage resources." + RESET);
-            throw new UserNotFoundException("Access denied. Please log in to manage bookings.");
-        }
-    }
-
-    /**
-     * Checks for booking conflicts with existing bookings for a specified resource.
-     * If a conflict is found, throws a BookingConflictException.
-     *
-     * @param booking the booking being checked
-     * @param bookingId the ID of the booking being checked
-     * @param endDateTime the end time of the booking being checked
-     * @param startDateTime the start time of the booking being checked
-     */
-    @SneakyThrows
-    private void isBookingConflict(Booking booking, Long bookingId, LocalDateTime endDateTime, LocalDateTime startDateTime) {
-        List<Booking> existingBookings = bookingRepository.getBookingsByResourceId(booking.getResourceId());
-        for (Booking existingBooking : existingBookings) {
-            if (!existingBooking.getId().equals(bookingId) && existingBooking.getStartTime().isBefore(endDateTime) && startDateTime.isBefore(existingBooking.getEndTime())) {
-                throw new BookingConflictException("Booking conflict: The resource is already booked during this time.");
-            }
-        }
-    }
-
-    /**
-     * Executes the chosen action based on the user's input.
-     *
-     * @param choice the integer corresponding to the user's chosen action
-     * @return true if the application should continue running, false if it should exit
-     */
-    private boolean executeChoice(int choice) throws BookingConflictException, ResourceNotFoundException, UserNotFoundException {
-        CheckedRunnable action = getActionsMap().getOrDefault(choice, this::invalidChoice);
-        action.run();
-        return running;
-    }
-
-    /**
-     * Determines the appropriate actions map based on the user's role.
-     *
-     * @return the map of actions for the current user
-     */
-    private Map<Integer, CheckedRunnable> getActionsMap() {
-        return bookingActions;
-    }
-
-    /**
-     * Sets running to false to exit the application.
-     */
-    private void exitApplication() {
-        running = false;
-    }
-
-    /**
-     * Displays an invalid choice message.
-     */
-    private void invalidChoice() {
-        System.out.println("Invalid choice. Please try again.");
-    }
-
 }

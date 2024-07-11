@@ -1,294 +1,533 @@
 package ru.y_lab.service;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import ru.y_lab.dto.AddResourceRequestDTO;
+import ru.y_lab.dto.ResourceDTO;
+import ru.y_lab.dto.ResourceWithOwnerDTO;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.mapper.CustomResourceMapper;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepository;
+import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.impl.ResourceServiceImpl;
-import ru.y_lab.ui.ResourceUI;
-import ru.y_lab.util.InputReader;
+import ru.y_lab.util.AuthenticationUtil;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.util.Collections;
+import java.io.*;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static ru.y_lab.constants.ColorTextCodes.*;
 
-/**
- * Unit tests for {@link ResourceServiceImpl}.
- */
-@DisplayName("Unit Tests for ResourceServiceImplTest")
+@DisplayName("ResourceServiceImpl Tests - addResource")
 public class ResourceServiceImplTest {
 
     @Mock
-    private InputReader inputReader;
+    private AuthenticationUtil authUtil;
+
+    @Mock
+    private CustomResourceMapper resourceMapper;
 
     @Mock
     private ResourceRepository resourceRepository;
 
     @Mock
-    private UserService userService;
+    private UserRepository userRepository;
 
     @Mock
-    private ResourceUI resourceUI;
+    private HttpServletRequest req;
 
+    @Mock
+    private HttpServletResponse resp;
+
+    @Mock
+    private HttpSession session;
+
+    @InjectMocks
     private ResourceServiceImpl resourceService;
 
-    /**
-     * Sets up the test environment by initializing mocks and creating an instance of {@link ResourceServiceImpl}.
-     */
+    private StringWriter stringWriter;
+    private PrintWriter writer;
+
     @BeforeEach
-    public void setUp() {
+    void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
-        resourceService = new ResourceServiceImpl(inputReader, resourceRepository, userService, resourceUI);
+
+        stringWriter = new StringWriter();
+        writer = new PrintWriter(stringWriter);
+        when(resp.getWriter()).thenReturn(writer);
+        when(req.getSession()).thenReturn(session);
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource exists.
+     * Test for successfully adding a resource.
+     * This test verifies that a resource is successfully added and a success response is sent.
      */
     @Test
-    @DisplayName("Test Getting Resource By ID When Resource Exists")
-    public void testGetResourceById_ResourceExists() {
-        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
+    @DisplayName("Add Resource")
+    void addResource() throws IOException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        AddResourceRequestDTO requestDTO = new AddResourceRequestDTO("ResourceName", "ResourceType");
+        Resource resource = Resource.builder().userId(currentUser.id()).name(requestDTO.name()).type(requestDTO.type()).build();
+        ResourceDTO resourceDTO = new ResourceDTO(1L, currentUser.id(), requestDTO.name(), requestDTO.type());
 
-        Resource resource = resourceService.getResourceById(1L);
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"ResourceName\", \"type\": \"ResourceType\"}")));
+        when(resourceRepository.addResource(any(Resource.class))).thenReturn(resource);
+        when(resourceMapper.toDTO(any(Resource.class))).thenReturn(resourceDTO);
 
-        assertNotNull(resource);
-        assertEquals(1L, resource.getId());
-        assertEquals(2L, resource.getUserId());
-        assertEquals("resourceName", resource.getName());
-        assertEquals("Workspace", resource.getType());
+        resourceService.addResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(201, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"id\":1,\"userId\":1,\"name\":\"ResourceName\",\"type\":\"ResourceType\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#getResourceById(Long)} when the resource does not exist.
+     * Test for unauthorized access.
+     * This test verifies that an error response is sent when the user is not authorized.
      */
     @Test
-    @DisplayName("Test Getting Resource By ID When Resource Not Found")
-    public void testGetResourceById_ResourceNotFound() {
+    @DisplayName("Unauthorized Access Add Resource")
+    void addResource_unauthorized() throws IOException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Access denied"));
+
+        resourceService.addResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for invalid resource request.
+     * This test verifies that an error response is sent when the resource data is invalid.
+     */
+    @Test
+    @DisplayName("Invalid Resource Request")
+    void addResource_invalidRequest() throws IOException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"\", \"type\": \"\"}")));
+
+        resourceService.addResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(400, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Invalid name. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for handling general exceptions.
+     * This test verifies that an error response is sent when a general exception occurs.
+     */
+    @Test
+    @DisplayName("Handle General Exception Add Resource")
+    void addResource_generalException() throws IOException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"ResourceName\", \"type\": \"ResourceType\"}")));
+        doThrow(new RuntimeException("Unexpected error")).when(resourceRepository).addResource(any(Resource.class));
+
+        resourceService.addResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(500, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Internal server error\"}", stringWriter.toString().trim());
+    }
+
+
+    /**
+     * Test for successfully retrieving a resource by ID.
+     * This test verifies that a resource is successfully retrieved and a success response is sent.
+     */
+    @Test
+    @DisplayName("Get Resource By ID")
+    void getResourceById() throws IOException, ResourceNotFoundException, UserNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(1L).name("ResourceName").type("ResourceType").build();
+        User user = User.builder().id(1L).username("admin").password("adminpass").role("ADMIN").build();
+        ResourceWithOwnerDTO resourceWithOwnerDTO = new ResourceWithOwnerDTO(1L, "ResourceName", "ResourceType", 1L,"admin");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
+        when(resourceMapper.toResourceWithOwnerDTO(any(Resource.class), any(User.class))).thenReturn(resourceWithOwnerDTO);
+
+        resourceService.getResourceById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(200, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"id\":1,\"name\":\"ResourceName\",\"type\":\"ResourceType\",\"userId\":1,\"username\":\"admin\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for unauthorized access.
+     * This test verifies that an error response is sent when the user is not authorized.
+     */
+    @Test
+    @DisplayName("Unauthorized Access Get Resource")
+    void getResourceById_unauthorized() throws IOException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Access denied"));
+
+        resourceService.getResourceById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for resource not found.
+     * This test verifies that an error response is sent when the resource is not found.
+     */
+    @Test
+    @DisplayName("Resource Not Found Get By ID")
+    void getResourceById_resourceNotFound() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> resourceService.getResourceById(1L));
+        resourceService.getResourceById(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#manageResources()} when the user is not logged in.
+     * Test for successfully retrieving all resources.
+     * This test verifies that all resources are successfully retrieved and a success response is sent.
      */
     @Test
-    @DisplayName("Test Managing Resources When User Not Logged In")
-    public void testManageResources_UserNotLoggedIn() {
-        when(userService.getCurrentUser()).thenReturn(null);
+    @DisplayName("Get All Resources")
+    void getAllResources() throws IOException, UserNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource1 = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+        Resource resource2 = Resource.builder().id(2L).userId(2L).name("Resource2").type("Type2").build();
+        User user1 = User.builder().id(1L).username("admin1").password("adminpass1").role("ADMIN").build();
+        User user2 = User.builder().id(2L).username("admin2").password("adminpass2").role("ADMIN").build();
+        ResourceWithOwnerDTO resourceDTO1 = new ResourceWithOwnerDTO(1L, "Resource1", "Type1", 1L,"admin1");
+        ResourceWithOwnerDTO resourceDTO2 = new ResourceWithOwnerDTO(2L, "Resource2", "Type2", 2L,"admin2");
 
-        resourceService.manageResources();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(resourceRepository.getAllResources()).thenReturn(List.of(resource1, resource2));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.of(user1));
+        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user2));
+        when(resourceMapper.toResourceWithOwnerDTO(resource1, user1)).thenReturn(resourceDTO1);
+        when(resourceMapper.toResourceWithOwnerDTO(resource2, user2)).thenReturn(resourceDTO2);
 
-        verify(userService, times(1)).getCurrentUser();
-        verifyNoMoreInteractions(resourceUI);
+        resourceService.getAllResources(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(200, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("[{\"id\":1,\"name\":\"Resource1\",\"type\":\"Type1\",\"userId\":1,\"username\":\"admin1\"}," +
+                "{\"id\":2,\"name\":\"Resource2\",\"type\":\"Type2\",\"userId\":2,\"username\":\"admin2\"}]",
+                stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#manageResources()} when the user is logged in.
-     * Verifies the management flow with valid choices.
+     * Test for unauthorized access.
+     * This test verifies that an error response is sent when the user is not authorized.
      */
     @Test
-    @DisplayName("Test Managing Resources When User Logged In")
-    public void testManageResources_UserLoggedIn() {
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
-        when(inputReader.getUserChoice()).thenReturn(0);
+    @DisplayName("Unauthorized Access Get All Resources")
+    void getAllResources_unauthorized() throws IOException {
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenThrow(new SecurityException("Access denied"));
 
-        resourceService.manageResources();
+        resourceService.getAllResources(req, resp);
 
-        verify(resourceUI, times(1)).showResourceMenu(userService);
-        verifyNoMoreInteractions(resourceUI);
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#viewResources()} when no resources are available.
-     * @throws UserNotFoundException if the user is not found
+     * Test for handling general exceptions.
+     * This test verifies that an error response is sent when a general exception occurs.
      */
     @Test
-    @DisplayName("Test Viewing Resources When No Resources Available")
-    public void testViewResources_NoResourcesAvailable() throws UserNotFoundException {
-        when(resourceRepository.getAllResources()).thenReturn(Collections.emptyList());
+    @DisplayName("Handle General Exception Get Resource")
+    void getAllResources_generalException() throws IOException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 
-        resourceService.viewResources();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(resourceRepository.getAllResources()).thenThrow(new RuntimeException("Unexpected error"));
 
-        verify(resourceRepository, times(1)).getAllResources();
-        verify(resourceUI, times(0)).showAvailableResources(any(), any()); // No resources to show
+        resourceService.getAllResources(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(400, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unexpected error\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#viewResources()} when resources are available.
-     * @throws UserNotFoundException if the user is not found
+     * Test for successfully updating a resource.
+     * This test verifies that a resource is successfully updated and a success response is sent.
      */
     @Test
-    @DisplayName("Test Viewing Resources When Resources Available")
-    public void testViewResources_WithResources() throws UserNotFoundException {
-        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
-        List<Resource> resources = List.of(mockResource);
-        when(resourceRepository.getAllResources()).thenReturn(resources);
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getUserById(2L)).thenReturn(mockUser);
+    @DisplayName("Update Resource")
+    void updateResource() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+        Resource updatedResource = Resource.builder().id(1L).userId(1L).name("UpdatedResource").type("UpdatedType").build();
+        ResourceDTO resourceDTO = new ResourceDTO(1L, 1L,"UpdatedResource", "UpdatedType");
 
-        resourceService.viewResources();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
+        when(resourceRepository.updateResource(any(Resource.class))).thenReturn(updatedResource);
+        when(resourceMapper.toDTO(any(Resource.class))).thenReturn(resourceDTO);
 
-        verify(resourceRepository, times(1)).getAllResources();
-        verify(resourceUI, times(1)).showAvailableResources(resources, userService);
+        resourceService.updateResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(200, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"id\":1,\"userId\":1,\"name\":\"UpdatedResource\",\"type\":\"UpdatedType\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#addResource()}.
+     * Test for unauthorized access.
+     * This test verifies that an error response is sent when the user is not authorized.
      */
     @Test
-    @DisplayName("Test Adding Resource")
-    public void testAddResource() {
-        when(inputReader.readLine()).thenReturn("New Resource", "Workspace");
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
-        doNothing().when(resourceRepository).addResource(any(Resource.class));
+    @DisplayName("Unauthorized Access Update Resource")
+    void updateResource_unauthorized() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(2L).name("Resource1").type("Type1").build();
 
-        resourceService.addResource();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(false);
 
-        verify(resourceRepository, times(1)).addResource(any(Resource.class));
+        resourceService.updateResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#updateResource()} when the resource exists.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
+     * Test for handling resource not found.
+     * This test verifies that an error response is sent when the resource is not found.
      */
     @Test
-    @DisplayName("Test Updating Resource When Resource Exists")
-    public void testUpdateResource_ResourceExists() throws ResourceNotFoundException {
-        Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
-        when(inputReader.readLine()).thenReturn("1", "Updated Resource", "Conference Room");
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
+    @DisplayName("Resource Not Found Update By ID")
+    void updateResource_resourceNotFound() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 
-        resourceService.updateResource();
-
-        verify(resourceRepository, times(1)).updateResource(any(Resource.class));
-    }
-
-    /**
-     * Test case for {@link ResourceServiceImpl#updateResource()} when the resource does not exist.
-     */
-    @Test
-    @DisplayName("Test Updating Resource When Resource Not Found")
-    public void testUpdateResource_ResourceNotFound() throws ResourceNotFoundException {
-        when(inputReader.readLine()).thenReturn("1");  // Simulate user input
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());  // Simulate resource not found
-
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        PrintStream originalSystemOut = System.out;
-        System.setOut(new PrintStream(outContent));
-
-        ResourceNotFoundException thrownException = assertThrows(ResourceNotFoundException.class, () -> resourceService.updateResource());
-
-        assertEquals(YELLOW + "Resource with ID " + 1L + " not found" + RESET, thrownException.getMessage());
-
-        String expectedOutput = CYAN + "Enter resource ID: " + RESET;
-        assertEquals(expectedOutput, outContent.toString());
-
-        System.setOut(originalSystemOut);
-
-        verify(resourceRepository, times(1)).getResourceById(1L);
-        verify(resourceRepository, never()).updateResource(any(Resource.class));
-    }
-
-    /**
-     * Test case for {@link ResourceServiceImpl#deleteResources()} when the resource exists.
-     *
-     * @throws ResourceNotFoundException if the resource is not found
-     */
-    @Test
-    @DisplayName("Test Deleting Resource When Resource Exists")
-    public void testDeleteResources_ResourceExists() throws ResourceNotFoundException {
-        Resource mockResource = new Resource(1L, 1L, "resourceName", "Workspace");
-        when(inputReader.readLine()).thenReturn("1");
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
-        doNothing().when(resourceRepository).deleteResource(1L);
-
-        resourceService.deleteResources();
-
-        verify(resourceRepository, times(1)).deleteResource(1L);
-    }
-
-    /**
-     * Test case for {@link ResourceServiceImpl#deleteResources()} when the resource does not exist.
-     */
-    @Test
-    @DisplayName("Test Deleting Resource When Resource Not Found")
-    public void testDeleteResources_ResourceNotFound() {
-        when(inputReader.readLine()).thenReturn("1");
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
 
-        resourceService.deleteResources();
+        resourceService.updateResource(req, resp);
 
-        verify(resourceRepository, times(1)).getResourceById(1L);
-        verifyNoMoreInteractions(resourceRepository);
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#manageResources()} when an invalid choice is made.
+     * Test for handling general exceptions.
+     * This test verifies that an error response is sent when a general exception occurs.
      */
     @Test
-    @DisplayName("Test Managing Resources With Invalid Choice")
-    public void testManageResources_InvalidChoice() {
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
-        when(inputReader.getUserChoice()).thenReturn(99, 0);  // Invalid choice
+    @DisplayName("Handle General Exception Update Resource")
+    void updateResource_generalException() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
 
-        resourceService.manageResources();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
+        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
+        when(resourceRepository.updateResource(any(Resource.class))).thenThrow(new RuntimeException("Unexpected error"));
 
-        verify(resourceUI, times(2)).showResourceMenu(userService);
+        resourceService.updateResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(500, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unexpected error\"}", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#updateResource()} when the user tries to update a resource they do not own.
+     * Test for successfully deleting a resource.
+     * This test verifies that a resource is successfully deleted and a success response is sent.
      */
     @Test
-    @DisplayName("Test Updating Resource With No Access")
-    public void testUpdateResource_NoAccess() throws Exception {
-        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
-        when(inputReader.readLine()).thenReturn("1", "newName", "newType");
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
+    @DisplayName("Delete Resource")
+    void deleteResource() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
 
-        resourceService.updateResource();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
 
-        verify(resourceRepository, times(0)).updateResource(any(Resource.class));
+        resourceService.deleteResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(204, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("", stringWriter.toString().trim());
     }
 
     /**
-     * Test case for {@link ResourceServiceImpl#deleteResources()} when the user tries to delete a resource they do not own.
+     * Test for unauthorized access.
+     * This test verifies that an error response is sent when the user is not authorized.
      */
     @Test
-    @DisplayName("Test Deleting Resource With No Access")
-    public void testDeleteResources_NoAccess() throws Exception {
-        Resource mockResource = new Resource(1L, 2L, "resourceName", "Workspace");
-        when(inputReader.readLine()).thenReturn("1");
-        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(mockResource));
-        User mockUser = new User(1L, "username", "password", "USER");
-        when(userService.getCurrentUser()).thenReturn(mockUser);
+    @DisplayName("Unauthorized Access Delete Resource")
+    void deleteResource_unauthorized() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(2L).name("Resource1").type("Type1").build();
 
-        resourceService.deleteResources();
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(false);
 
-        verify(resourceRepository, times(0)).deleteResource(anyLong());
+        resourceService.deleteResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(401, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Access denied\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for handling resource not found.
+     * This test verifies that an error response is sent when the resource is not found.
+     */
+    @Test
+    @DisplayName("Resource Not Found Delete By ID")
+    void deleteResource_resourceNotFound() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        resourceService.deleteResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(404, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Resource not found by ID: 1\"}", stringWriter.toString().trim());
+    }
+
+    /**
+     * Test for handling general exceptions.
+     * This test verifies that an error response is sent when a general exception occurs.
+     */
+    @Test
+    @DisplayName("Handle General Exception Delete Resource")
+    void deleteResource_generalException() throws IOException, ResourceNotFoundException {
+        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
+        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+
+        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
+        when(req.getParameter("resourceId")).thenReturn("1");
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
+        doThrow(new RuntimeException("Unexpected error")).when(resourceRepository).deleteResource(1L);
+
+        resourceService.deleteResource(req, resp);
+
+        writer.flush();
+        ArgumentCaptor<Integer> statusCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(resp).setStatus(statusCaptor.capture());
+        assertEquals(500, statusCaptor.getValue());
+
+        verify(resp).setContentType("application/json");
+        assertEquals("{\"message\":\"Unexpected error\"}", stringWriter.toString().trim());
     }
 }
