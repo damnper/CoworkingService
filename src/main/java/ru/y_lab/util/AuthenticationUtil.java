@@ -11,6 +11,8 @@ import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 
+import static ru.y_lab.enums.RoleType.ADMIN;
+
 /**
  * Utility class for handling authentication and authorization.
  */
@@ -55,6 +57,11 @@ public class AuthenticationUtil {
         }
 
         UserDTO currentUser = (UserDTO) session.getAttribute("currentUser");
+
+        // Allow access if the current user is an admin
+        if (currentUser.role().equals(ADMIN.name())) {
+            return currentUser;
+        }
 
         if (requiredRole != null && !requiredRole.equals(currentUser.role())) {
             throw new SecurityException("Access denied");

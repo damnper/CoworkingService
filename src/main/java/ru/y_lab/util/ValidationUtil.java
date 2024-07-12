@@ -16,13 +16,11 @@ public class ValidationUtil {
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,15}$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^[a-zA-Z0-9@#%]{6,20}$");
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я]{1,50}$");
-    private static final Pattern TYPE_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я]{1,20}$");
+    private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я0-9 ]{1,50}$");
 
     private static final String INVALID_USERNAME_MESSAGE = "Invalid username. Username must be 3 to 15 characters long and can only contain letters, numbers, and underscores.";
     private static final String INVALID_PASSWORD_MESSAGE = "Invalid password. Password must be 6 to 20 characters long and can only contain letters, numbers, and the special characters @, #, and %.";
     private static final String INVALID_NAME_MESSAGE = "Invalid name. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).";
-    private static final String INVALID_TYPE_MESSAGE = "Invalid type. Type must be 1 to 20 characters long and can only contain letters (Latin and Cyrillic).";
     private static final String INVALID_TIME_MESSAGE = "Invalid time. Start time and end time must be in the future.";
     private static final String INVALID_RESOURCE_ID_MESSAGE = "Resource ID must be provided and must be a Long.";
     private static final String INVALID_START_TIME_MESSAGE = "Start time must be provided and must be a Long.";
@@ -91,16 +89,13 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the AddResourceRequestDTO for name and type.
+     * Validates the AddResourceRequestDTO for name.
      *
      * @param request the AddResourceRequestDTO to validate
      */
     public static void validateAddResourceRequest(AddResourceRequestDTO request) {
         if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
-        }
-        if (request.type() == null || request.type().isEmpty() || !validateType(request.type())) {
-            throw new IllegalArgumentException(INVALID_TYPE_MESSAGE);
         }
     }
 
@@ -112,9 +107,6 @@ public class ValidationUtil {
     public static void validateUpdateResourceRequest(UpdateResourceRequestDTO request) {
         if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
-        }
-        if (request.type() == null || request.type().isEmpty() || !validateType(request.type())) {
-            throw new IllegalArgumentException(INVALID_TYPE_MESSAGE);
         }
     }
 
@@ -128,15 +120,6 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the type based on predefined rules.
-     * @param type the type to be validated
-     * @return true if the type is valid, false otherwise
-     */
-    public static boolean validateType(String type) {
-        return TYPE_PATTERN.matcher(type).matches();
-    }
-
-    /**
      * Validates the AddBookingRequestDTO for resourceId, startTime, and endTime.
      *
      * @param request the AddBookingRequestDTO to validate
@@ -145,17 +128,8 @@ public class ValidationUtil {
         if (request.resourceId() == null) {
             throw new IllegalArgumentException(INVALID_RESOURCE_ID_MESSAGE);
         }
-        if (request.startTime() == null) {
-            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
-        }
-        if (request.endTime() == null) {
-            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
-        }
-        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.startTime()), ZoneOffset.UTC);
-        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.endTime()), ZoneOffset.UTC);
-        validateDateTime(startDateTime, endDateTime);
+        validateTime(request.startTime(), request.endTime());
     }
-
 
     /**
      * Validates the UpdateBookingRequestDTO for resourceId, startTime, and endTime.
@@ -163,15 +137,7 @@ public class ValidationUtil {
      * @param request the UpdateBookingRequestDTO to validate
      */
     public static void validateUpdateBookingRequest(UpdateBookingRequestDTO request) {
-        if (request.startTime() == null) {
-            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
-        }
-        if (request.endTime() == null) {
-            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
-        }
-        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.startTime()), ZoneOffset.UTC);
-        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.endTime()), ZoneOffset.UTC);
-        validateDateTime(startDateTime, endDateTime);
+        validateTime(request.startTime(), request.endTime());
     }
 
     /**
@@ -190,5 +156,17 @@ public class ValidationUtil {
         if (startDateTime.isBefore(LocalDateTime.now()) | endDateTime.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException(INVALID_TIME_IN_PAST_MESSAGE);
         }
+    }
+
+    private static void validateTime(Long startTime, Long endTime) {
+        if (startTime == null) {
+            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
+        }
+        if (endTime == null) {
+            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
+        }
+        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTime), ZoneOffset.UTC);
+        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTime), ZoneOffset.UTC);
+        validateDateTime(startDateTime, endDateTime);
     }
 }

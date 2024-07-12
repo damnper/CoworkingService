@@ -18,6 +18,8 @@ import ru.y_lab.util.AuthenticationUtil;
 
 import java.util.List;
 
+import static ru.y_lab.enums.RoleType.ADMIN;
+import static ru.y_lab.enums.RoleType.USER;
 import static ru.y_lab.util.ValidationUtil.*;
 
 /**
@@ -76,7 +78,8 @@ public class UserServiceImpl implements UserService {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     @Override
-    public UserDTO getUserById(Long userId) {
+    public UserDTO getUserById(Long userId, HttpServletRequest httpRequest) {
+        authUtil.authenticate(httpRequest, USER.name());
         User user = userRepository.getUserById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + userId));
         return userMapper.toDTO(user);
@@ -91,7 +94,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public List<UserDTO> getAllUsers(HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, "ADMIN");
+        authUtil.authenticate(httpRequest, ADMIN.name());
 
         List<User> users = userRepository.getAllUsers()
                 .orElseThrow(() -> new UserNotFoundException("No users found in the system."));
@@ -112,7 +115,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserDTO updateUser(Long userId, UpdateUserRequestDTO request, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, null);
+        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
         validateUpdateUserRequest(request);
 
@@ -136,9 +139,10 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void deleteUser(Long userId, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, null);
+        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
         userRepository.deleteUser(userId);
+        shutdownSession(httpRequest);
     }
 
     /**
@@ -151,5 +155,20 @@ public class UserServiceImpl implements UserService {
         HttpSession session = request.getSession(true);
         session.setAttribute("currentUser", user);
         session.setMaxInactiveInterval(30 * 60); // Session timeout in seconds
+    }
+
+    /**
+     * Invalidates the current user session.
+     *
+     * <p>This method retrieves the current {@link HttpSession} from the provided {@link HttpServletRequest}
+     * and invalidates it, effectively logging out the user. If there is no current session,
+     * the method does nothing.</p>
+     *
+     * @param httpRequest the {@link HttpServletRequest} from which to retrieve the session
+     * @throws IllegalStateException if the session has already been invalidated
+     */
+    private static void shutdownSession(HttpServletRequest httpRequest) {
+        HttpSession session = httpRequest.getSession(false);
+        session.invalidate();
     }
 }

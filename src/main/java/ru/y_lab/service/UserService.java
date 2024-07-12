@@ -34,9 +34,10 @@ public interface UserService {
      * Retrieves a user by their ID.
      *
      * @param userId the ID of the user
+     * @param httpRequest the HTTP request to get the session
      * @return the user as a UserDTO
      */
-    UserDTO getUserById(Long userId);
+    UserDTO getUserById(Long userId, HttpServletRequest httpRequest);
 
     /**
      * Retrieves all users in the system. Only accessible by admin users.

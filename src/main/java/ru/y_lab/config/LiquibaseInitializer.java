@@ -21,7 +21,6 @@ public class LiquibaseInitializer {
         liquibase.setChangeLog("classpath:db/changelog.xml");
         liquibase.setDefaultSchema("coworking_service");
         liquibase.setLiquibaseSchema("liquibase");
-        liquibase.setDropFirst(true);
         liquibase.setShouldRun(true);
         return liquibase;
     }

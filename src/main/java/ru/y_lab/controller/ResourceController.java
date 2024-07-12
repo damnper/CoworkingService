@@ -5,54 +5,92 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.y_lab.dto.*;
-import ru.y_lab.exception.ResourceNotFoundException;
-import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.dto.AddResourceRequestDTO;
+import ru.y_lab.dto.ResourceDTO;
+import ru.y_lab.dto.ResourceWithOwnerDTO;
+import ru.y_lab.dto.UpdateResourceRequestDTO;
+import ru.y_lab.enums.ResourceType;
 import ru.y_lab.service.ResourceService;
-import ru.y_lab.util.AuthenticationUtil;
 
 import java.util.List;
 
+/**
+ * ResourceController handles HTTP requests for managing resources.
+ */
 @RestController
 @RequestMapping("/resources")
 @RequiredArgsConstructor
 public class ResourceController {
 
     private final ResourceService resourceService;
-    private final AuthenticationUtil authUtil;
 
+    /**
+     * Adds a new resource.
+     *
+     * @param addResourceRequest the request containing resource details
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return ResponseEntity containing the added resource as a ResourceDTO
+     */
     @PostMapping
-    public ResponseEntity<ResourceDTO> addResource(HttpServletRequest req, @RequestBody AddResourceRequestDTO request) {
-        UserDTO currentUser = authUtil.authenticate(req, null);
-        ResourceDTO resourceDTO = resourceService.addResource(request, currentUser);
+    public ResponseEntity<ResourceDTO> addResource(@RequestBody AddResourceRequestDTO addResourceRequest,
+                                                   @RequestParam ResourceType resourceType,
+                                                   HttpServletRequest httpRequest) {
+        ResourceDTO resourceDTO = resourceService.addResource(addResourceRequest, resourceType, httpRequest);
         return new ResponseEntity<>(resourceDTO, HttpStatus.CREATED);
     }
 
+    /**
+     * Retrieves a resource by its ID.
+     *
+     * @param resourceId the ID of the resource
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return ResponseEntity containing the resource with owner details as a ResourceWithOwnerDTO
+     */
     @GetMapping("/{resourceId}")
-    public ResponseEntity<ResourceWithOwnerDTO> getResourceById(HttpServletRequest req, @PathVariable("resourceId") Long resourceId) throws UserNotFoundException, ResourceNotFoundException {
-        authUtil.authenticate(req, null);
-        ResourceWithOwnerDTO resourceWithOwnerDTO = resourceService.getResourceById(resourceId);
+    public ResponseEntity<ResourceWithOwnerDTO> getResourceById(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest) {
+        ResourceWithOwnerDTO resourceWithOwnerDTO = resourceService.getResourceById(resourceId, httpRequest);
         return new ResponseEntity<>(resourceWithOwnerDTO, HttpStatus.OK);
     }
 
+    /**
+     * Retrieves all resources in the system.
+     *
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return ResponseEntity containing a list of all resources with their owner details
+     */
     @GetMapping
-    public ResponseEntity<List<ResourceWithOwnerDTO>> getAllResources(HttpServletRequest req) throws ResourceNotFoundException {
-        authUtil.authenticate(req, null);
-        List<ResourceWithOwnerDTO> resourcesWithOwners = resourceService.getAllResources();
+    public ResponseEntity<List<ResourceWithOwnerDTO>> getAllResources(HttpServletRequest httpRequest) {
+        List<ResourceWithOwnerDTO> resourcesWithOwners = resourceService.getAllResources(httpRequest);
         return new ResponseEntity<>(resourcesWithOwners, HttpStatus.OK);
     }
 
+    /**
+     * Updates an existing resource.
+     *
+     * @param resourceId the ID of the resource to be updated
+     * @param request the update request containing updated resource details
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return ResponseEntity containing the updated resource as a ResourceDTO
+     */
     @PutMapping("/{resourceId}")
-    public ResponseEntity<ResourceDTO> updateResource(HttpServletRequest req, @PathVariable("resourceId") Long resourceId, @RequestBody UpdateResourceRequestDTO request) throws ResourceNotFoundException {
-        UserDTO currentUser = authUtil.authenticate(req, null);
-        ResourceDTO resourceDTO = resourceService.updateResource(resourceId, request, currentUser);
+    public ResponseEntity<ResourceDTO> updateResource(@PathVariable("resourceId") Long resourceId,
+                                                      @RequestBody UpdateResourceRequestDTO request,
+                                                      @RequestParam ResourceType resourceType,
+                                                      HttpServletRequest httpRequest) {
+        ResourceDTO resourceDTO = resourceService.updateResource(resourceId, request, resourceType, httpRequest);
         return new ResponseEntity<>(resourceDTO, HttpStatus.OK);
     }
 
+    /**
+     * Deletes a resource by its ID.
+     *
+     * @param resourceId the ID of the resource to be deleted
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return ResponseEntity with HTTP status NO_CONTENT
+     */
     @DeleteMapping("/{resourceId}")
-    public ResponseEntity<Void> deleteResource(HttpServletRequest req, @PathVariable("resourceId") Long resourceId) throws ResourceNotFoundException {
-        UserDTO currentUser = authUtil.authenticate(req, null);
-        resourceService.deleteResource(resourceId, currentUser);
+    public ResponseEntity<Void> deleteResource(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest) {
+        resourceService.deleteResource(resourceId, httpRequest);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
