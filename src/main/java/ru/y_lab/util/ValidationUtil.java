@@ -20,7 +20,7 @@ public class ValidationUtil {
 
     private static final String INVALID_USERNAME_MESSAGE = "Invalid username. Username must be 3 to 15 characters long and can only contain letters, numbers, and underscores.";
     private static final String INVALID_PASSWORD_MESSAGE = "Invalid password. Password must be 6 to 20 characters long and can only contain letters, numbers, and the special characters @, #, and %.";
-    private static final String INVALID_NAME_MESSAGE = "Invalid name. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).";
+    private static final String INVALID_NAME_MESSAGE = "Invalid resourceName. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).";
     private static final String INVALID_TIME_MESSAGE = "Invalid time. Start time and end time must be in the future.";
     private static final String INVALID_RESOURCE_ID_MESSAGE = "Resource ID must be provided and must be a Long.";
     private static final String INVALID_START_TIME_MESSAGE = "Start time must be provided and must be a Long.";
@@ -89,7 +89,7 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the AddResourceRequestDTO for name.
+     * Validates the AddResourceRequestDTO for resourceName.
      *
      * @param request the AddResourceRequestDTO to validate
      */
@@ -100,7 +100,7 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the UpdateResourceRequestDTO for name and type.
+     * Validates the UpdateResourceRequestDTO for resourceName and type.
      *
      * @param request the UpdateResourceRequestDTO to validate
      */
@@ -111,9 +111,9 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the name based on predefined rules.
-     * @param name the name to be validated
-     * @return true if the name is valid, false otherwise
+     * Validates the resourceName based on predefined rules.
+     * @param name the resourceName to be validated
+     * @return true if the resourceName is valid, false otherwise
      */
     public static boolean validateName(String name) {
         return NAME_PATTERN.matcher(name).matches();

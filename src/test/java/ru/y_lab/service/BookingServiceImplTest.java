@@ -90,13 +90,13 @@
 //    @DisplayName("Add Booking")
 //    void addBooking() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        LocalDateTime startTime = LocalDateTime.now().plusDays(1).plusHours(1);
 //        LocalDateTime endTime = LocalDateTime.now().plusDays(1).plusHours(2);
 //        long epochMilli = startTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 //        long endMilli = endTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 //        Booking booking = Booking.builder()
-//                .userId(currentUser.id())
+//                .ownerId(currentUser.id())
 //                .resourceId(resource.getId())
 //                .startTime(startTime)
 //                .endTime(endTime)
@@ -119,7 +119,7 @@
 //        assertEquals(201, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"id\":1,\"userId\":1,\"resourceId\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}", stringWriter.toString().trim());
+//        assertEquals("{\"id\":1,\"ownerId\":1,\"resourceId\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -167,7 +167,7 @@
 //        assertEquals(404, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"message\":\"Resource not found by resource name: 1\"}", stringWriter.toString().trim());
+//        assertEquals("{\"message\":\"Resource not found by resource resourceName: 1\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -203,10 +203,10 @@
 //    void getBookingById_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        User user = User.builder().id(1L).username("user").password("password").build();
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(user.getId())
+//                .ownerId(user.getId())
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -238,7 +238,7 @@
 //        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}", stringWriter.toString().trim());
+//        assertEquals("{\"ownerId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -267,7 +267,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -293,10 +293,10 @@
 //    @DisplayName("Get Booking By ID - User Not Found")
 //    void getBookingById_userNotFound() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -356,10 +356,10 @@
 //    void getUserBookings_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        User user = User.builder().id(1L).username("user").password("password").build();
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(user.getId())
+//                .ownerId(user.getId())
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -390,7 +390,7 @@
 //        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("[{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+//        assertEquals("[{\"ownerId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -418,7 +418,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -446,7 +446,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -504,10 +504,10 @@
 //    void getAllBookings_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        User user = User.builder().id(1L).username("user").password("password").build();
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(user.getId())
+//                .ownerId(user.getId())
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -538,7 +538,7 @@
 //        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("[{\"userId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+//        assertEquals("[{\"ownerId\":1,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -566,7 +566,7 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -594,7 +594,7 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(1L)
+//                .ownerId(1L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -653,10 +653,10 @@
 //    void getBookingsByUserId_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        User user = User.builder().id(2L).username("user").password("password").build();
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(user.getId())
+//                .ownerId(user.getId())
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -674,7 +674,7 @@
 //        );
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user));
 //        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
@@ -688,7 +688,7 @@
 //        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("[{\"userId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+//        assertEquals("[{\"ownerId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -697,7 +697,7 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.empty());
 //
 //        bookingService.getBookingsByUserId(req, resp);
@@ -717,14 +717,14 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
 //                .build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.of(User.builder().id(2L).username("user").password("password").build()));
 //        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
@@ -746,14 +746,14 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
 //                .build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), eq("ADMIN"))).thenReturn(adminUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(bookingRepository.getBookingsByUserId(2L)).thenReturn(Optional.of(List.of(booking)));
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.empty());
 //
@@ -805,10 +805,10 @@
 //    void getBookingsByResourceId_success() throws IOException, UserNotFoundException, ResourceNotFoundException, BookingNotFoundException {
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        User user = User.builder().id(2L).username("user").password("password").build();
-//        Resource resource = Resource.builder().id(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).resourceName("Resource1").type("Type1").build();
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(user.getId())
+//                .ownerId(user.getId())
 //                .resourceId(resource.getId())
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -840,7 +840,7 @@
 //        assertEquals(HttpServletResponse.SC_OK, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("[{\"userId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
+//        assertEquals("[{\"ownerId\":2,\"resourceId\":1,\"bookingId\":1,\"username\":\"user\",\"resourceName\":\"Resource1\",\"resourceType\":\"Type1\",\"date\":\"" + booking.getStartTime().toLocalDate().toString() + "\",\"startTime\":\"" + booking.getStartTime().toLocalTime().toString() + "\",\"endTime\":\"" + booking.getEndTime().toLocalTime().toString() + "\"}]", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -869,7 +869,7 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -898,7 +898,7 @@
 //        UserDTO adminUser = new UserDTO(1L, "admin", "password", "ADMIN");
 //        Booking booking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -963,14 +963,14 @@
 //
 //        Booking booking1 = Booking.builder()
 //                .id(1L)
-//                .userId(userDTO.id())
+//                .ownerId(userDTO.id())
 //                .resourceId(resourceId)
 //                .startTime(date.atTime(10, 0))
 //                .endTime(date.atTime(11, 0))
 //                .build();
 //        Booking booking2 = Booking.builder()
 //                .id(2L)
-//                .userId(userDTO.id())
+//                .ownerId(userDTO.id())
 //                .resourceId(resourceId)
 //                .startTime(date.atTime(14, 0))
 //                .endTime(date.atTime(15, 0))
@@ -1027,7 +1027,7 @@
 //        LocalDateTime originalEndTime = LocalDateTime.now().plusDays(1).plusHours(2);
 //        Booking existingBooking = Booking.builder()
 //                .id(1L)
-//                .userId(currentUser.id())
+//                .ownerId(currentUser.id())
 //                .resourceId(1L)
 //                .startTime(originalStartTime)
 //                .endTime(originalEndTime)
@@ -1056,7 +1056,7 @@
 //        assertEquals(200, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"id\":1,\"userId\":1,\"resourceId\":1,\"startTime\":\"" + newStartTime + "\",\"endTime\":\"" + newEndTime + "\"}", stringWriter.toString().trim());
+//        assertEquals("{\"id\":1,\"ownerId\":1,\"resourceId\":1,\"startTime\":\"" + newStartTime + "\",\"endTime\":\"" + newEndTime + "\"}", stringWriter.toString().trim());
 //    }
 //
 //    @Test
@@ -1066,7 +1066,7 @@
 //
 //        Booking existingBooking = Booking.builder()
 //                .id(1L)
-//                .userId(currentUser.id())
+//                .ownerId(currentUser.id())
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -1099,7 +1099,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking existingBooking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -1133,7 +1133,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking existingBooking = Booking.builder()
 //                .id(1L)
-//                .userId(currentUser.id())
+//                .ownerId(currentUser.id())
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -1181,7 +1181,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "user", "password", "USER");
 //        Booking existingBooking = Booking.builder()
 //                .id(1L)
-//                .userId(2L)
+//                .ownerId(2L)
 //                .resourceId(1L)
 //                .startTime(LocalDateTime.now().plusDays(1).plusHours(1))
 //                .endTime(LocalDateTime.now().plusDays(1).plusHours(2))

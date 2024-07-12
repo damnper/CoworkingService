@@ -8,7 +8,7 @@ import ru.y_lab.dto.*;
 import ru.y_lab.enums.ResourceType;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
-import ru.y_lab.mapper.CustomResourceMapper;
+import ru.y_lab.mapper.ResourceMapper;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepository;
@@ -32,7 +32,7 @@ import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
 public class ResourceServiceImpl implements ResourceService {
 
     private final AuthenticationUtil authUtil;
-    private final CustomResourceMapper resourceMapper;
+    private final ResourceMapper resourceMapper;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
 

@@ -247,7 +247,7 @@
 //        User user = User.builder().id(2L).username("testuser").password("testpass").role("USER").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user));
 //        when(userMapper.toDTO(user)).thenReturn(userDTO);
@@ -273,7 +273,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(false);
 //
 //        userService.getUserById(req, resp);
@@ -297,7 +297,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.empty());
 //
@@ -322,7 +322,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(userRepository.getUserById(2L)).thenThrow(new RuntimeException("Unexpected error"));
 //
@@ -421,7 +421,7 @@
 //        User user = User.builder().id(2L).username("testuser").password("newpass").role("USER").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"username\": \"testuser\", \"password\": \"newpass\"}")));
 //        when(userRepository.getUserById(2L)).thenReturn(Optional.of(user));
@@ -449,7 +449,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(false);
 //
 //        userService.updateUser(req, resp);
@@ -473,7 +473,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"username\": \"testuser\", \"password\": \"newpass\"}")));
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"username\": \"testuser\", \"password\": \"newpass\"}")));
@@ -500,7 +500,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"username\": \"testuser\", \"password\": \"newpass\"}")));
 //        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"username\": \"\", \"password\": \"\"}")));
@@ -527,7 +527,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(true);
 //
 //        userService.deleteUser(req, resp);
@@ -548,7 +548,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getParameter("userId")).thenReturn("2");
+//        when(req.getParameter("ownerId")).thenReturn("2");
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 2L)).thenReturn(false);
 //
 //        userService.deleteUser(req, resp);

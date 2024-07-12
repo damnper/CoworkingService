@@ -8,7 +8,7 @@ package ru.y_lab.dto;
  * @param resourceId the unique identifier of the resource being booked
  * @param bookingId the unique identifier of the booking
  * @param ownerName the username of the user who made the booking
- * @param resourceName the name of the resource being booked
+ * @param resourceName the resourceName of the resource being booked
  * @param resourceType the type of the resource being booked
  * @param date the date of the booking
  * @param startTime the start time of the booking

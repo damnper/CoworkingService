@@ -10,7 +10,7 @@ import ru.y_lab.dto.RegisterRequestDTO;
 import ru.y_lab.dto.UpdateUserRequestDTO;
 import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
-import ru.y_lab.mapper.CustomUserMapper;
+import ru.y_lab.mapper.UserMapper;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.UserService;
@@ -31,7 +31,7 @@ import static ru.y_lab.util.ValidationUtil.*;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final CustomUserMapper userMapper;
+    private final UserMapper userMapper;
     private final UserRepository userRepository;
     private final AuthenticationUtil authUtil;
 

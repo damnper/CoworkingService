@@ -9,7 +9,7 @@ import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
-import ru.y_lab.mapper.CustomBookingMapper;
+import ru.y_lab.mapper.BookingMapper;
 import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
@@ -40,7 +40,7 @@ import static ru.y_lab.util.ValidationUtil.*;
 public class BookingServiceImpl implements BookingService {
 
     private final AuthenticationUtil authUtil;
-    private final CustomBookingMapper bookingMapper;
+    private final BookingMapper bookingMapper;
     private final CustomDateTimeMapper dateTimeMapper;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;

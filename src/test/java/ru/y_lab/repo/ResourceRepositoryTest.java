@@ -51,7 +51,7 @@
 //                stmt.execute("CREATE TABLE coworking_service.resources (" +
 //                        "id SERIAL PRIMARY KEY, " +
 //                        "user_id BIGINT, " +
-//                        "name VARCHAR(255), " +
+//                        "resourceName VARCHAR(255), " +
 //                        "type VARCHAR(255))");
 //            }
 //        } catch (SQLException e) {

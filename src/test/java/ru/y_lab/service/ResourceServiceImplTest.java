@@ -81,11 +81,11 @@
 //    void addResource() throws IOException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //        AddResourceRequestDTO requestDTO = new AddResourceRequestDTO("ResourceName", "ResourceType");
-//        Resource resource = Resource.builder().userId(currentUser.id()).name(requestDTO.name()).type(requestDTO.type()).build();
-//        ResourceDTO resourceDTO = new ResourceDTO(1L, currentUser.id(), requestDTO.name(), requestDTO.type());
+//        Resource resource = Resource.builder().ownerId(currentUser.id()).resourceName(requestDTO.resourceName()).type(requestDTO.type()).build();
+//        ResourceDTO resourceDTO = new ResourceDTO(1L, currentUser.id(), requestDTO.resourceName(), requestDTO.type());
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"ResourceName\", \"type\": \"ResourceType\"}")));
+//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceName\": \"ResourceName\", \"type\": \"ResourceType\"}")));
 //        when(resourceRepository.addResource(any(Resource.class))).thenReturn(resource);
 //        when(resourceMapper.toDTO(any(Resource.class))).thenReturn(resourceDTO);
 //
@@ -97,7 +97,7 @@
 //        assertEquals(201, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"id\":1,\"userId\":1,\"name\":\"ResourceName\",\"type\":\"ResourceType\"}", stringWriter.toString().trim());
+//        assertEquals("{\"id\":1,\"ownerId\":1,\"resourceName\":\"ResourceName\",\"type\":\"ResourceType\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -130,7 +130,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"\", \"type\": \"\"}")));
+//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceName\": \"\", \"type\": \"\"}")));
 //
 //        resourceService.addResource(req, resp);
 //
@@ -140,7 +140,7 @@
 //        assertEquals(400, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"message\":\"Invalid name. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).\"}", stringWriter.toString().trim());
+//        assertEquals("{\"message\":\"Invalid resourceName. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -153,7 +153,7 @@
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
-//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"ResourceName\", \"type\": \"ResourceType\"}")));
+//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceName\": \"ResourceName\", \"type\": \"ResourceType\"}")));
 //        doThrow(new RuntimeException("Unexpected error")).when(resourceRepository).addResource(any(Resource.class));
 //
 //        resourceService.addResource(req, resp);
@@ -176,7 +176,7 @@
 //    @DisplayName("Get Resource By ID")
 //    void getResourceById() throws IOException, ResourceNotFoundException, UserNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(1L).name("ResourceName").type("ResourceType").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(1L).resourceName("ResourceName").type("ResourceType").build();
 //        User user = User.builder().id(1L).username("admin").password("adminpass").role("ADMIN").build();
 //        ResourceWithOwnerDTO resourceWithOwnerDTO = new ResourceWithOwnerDTO(1L, "ResourceName", "ResourceType", 1L,"admin");
 //
@@ -194,7 +194,7 @@
 //        assertEquals(200, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"id\":1,\"name\":\"ResourceName\",\"type\":\"ResourceType\",\"userId\":1,\"username\":\"admin\"}", stringWriter.toString().trim());
+//        assertEquals("{\"id\":1,\"resourceName\":\"ResourceName\",\"type\":\"ResourceType\",\"ownerId\":1,\"username\":\"admin\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -249,8 +249,8 @@
 //    @DisplayName("Get All Resources")
 //    void getAllResources() throws IOException, UserNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource1 = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
-//        Resource resource2 = Resource.builder().id(2L).userId(2L).name("Resource2").type("Type2").build();
+//        Resource resource1 = Resource.builder().id(1L).ownerId(1L).resourceName("Resource1").type("Type1").build();
+//        Resource resource2 = Resource.builder().id(2L).ownerId(2L).resourceName("Resource2").type("Type2").build();
 //        User user1 = User.builder().id(1L).username("admin1").password("adminpass1").role("ADMIN").build();
 //        User user2 = User.builder().id(2L).username("admin2").password("adminpass2").role("ADMIN").build();
 //        ResourceWithOwnerDTO resourceDTO1 = new ResourceWithOwnerDTO(1L, "Resource1", "Type1", 1L,"admin1");
@@ -271,8 +271,8 @@
 //        assertEquals(200, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("[{\"id\":1,\"name\":\"Resource1\",\"type\":\"Type1\",\"userId\":1,\"username\":\"admin1\"}," +
-//                "{\"id\":2,\"name\":\"Resource2\",\"type\":\"Type2\",\"userId\":2,\"username\":\"admin2\"}]",
+//        assertEquals("[{\"id\":1,\"resourceName\":\"Resource1\",\"type\":\"Type1\",\"ownerId\":1,\"username\":\"admin1\"}," +
+//                "{\"id\":2,\"resourceName\":\"Resource2\",\"type\":\"Type2\",\"ownerId\":2,\"username\":\"admin2\"}]",
 //                stringWriter.toString().trim());
 //    }
 //
@@ -327,15 +327,15 @@
 //    @DisplayName("Update Resource")
 //    void updateResource() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
-//        Resource updatedResource = Resource.builder().id(1L).userId(1L).name("UpdatedResource").type("UpdatedType").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(1L).resourceName("Resource1").type("Type1").build();
+//        Resource updatedResource = Resource.builder().id(1L).ownerId(1L).resourceName("UpdatedResource").type("UpdatedType").build();
 //        ResourceDTO resourceDTO = new ResourceDTO(1L, 1L,"UpdatedResource", "UpdatedType");
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
 //        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
-//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
+//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceName\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
 //        when(resourceRepository.updateResource(any(Resource.class))).thenReturn(updatedResource);
 //        when(resourceMapper.toDTO(any(Resource.class))).thenReturn(resourceDTO);
 //
@@ -347,7 +347,7 @@
 //        assertEquals(200, statusCaptor.getValue());
 //
 //        verify(resp).setContentType("application/json");
-//        assertEquals("{\"id\":1,\"userId\":1,\"name\":\"UpdatedResource\",\"type\":\"UpdatedType\"}", stringWriter.toString().trim());
+//        assertEquals("{\"id\":1,\"ownerId\":1,\"resourceName\":\"UpdatedResource\",\"type\":\"UpdatedType\"}", stringWriter.toString().trim());
 //    }
 //
 //    /**
@@ -358,7 +358,7 @@
 //    @DisplayName("Unauthorized Access Update Resource")
 //    void updateResource_unauthorized() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(2L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(2L).resourceName("Resource1").type("Type1").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
@@ -408,13 +408,13 @@
 //    @DisplayName("Handle General Exception Update Resource")
 //    void updateResource_generalException() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(1L).resourceName("Resource1").type("Type1").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
 //        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
 //        when(authUtil.isUserAuthorizedToAction(currentUser, 1L)).thenReturn(true);
-//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"name\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
+//        when(req.getReader()).thenReturn(new BufferedReader(new StringReader("{\"resourceName\": \"UpdatedResource\", \"type\": \"UpdatedType\"}")));
 //        when(resourceRepository.updateResource(any(Resource.class))).thenThrow(new RuntimeException("Unexpected error"));
 //
 //        resourceService.updateResource(req, resp);
@@ -436,7 +436,7 @@
 //    @DisplayName("Delete Resource")
 //    void deleteResource() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(1L).resourceName("Resource1").type("Type1").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
@@ -462,7 +462,7 @@
 //    @DisplayName("Unauthorized Access Delete Resource")
 //    void deleteResource_unauthorized() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(2L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(2L).resourceName("Resource1").type("Type1").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
@@ -512,7 +512,7 @@
 //    @DisplayName("Handle General Exception Delete Resource")
 //    void deleteResource_generalException() throws IOException, ResourceNotFoundException {
 //        UserDTO currentUser = new UserDTO(1L, "admin", "adminpass", "ADMIN");
-//        Resource resource = Resource.builder().id(1L).userId(1L).name("Resource1").type("Type1").build();
+//        Resource resource = Resource.builder().id(1L).ownerId(1L).resourceName("Resource1").type("Type1").build();
 //
 //        when(authUtil.authenticateAndAuthorize(any(HttpServletRequest.class), any())).thenReturn(currentUser);
 //        when(req.getParameter("resourceId")).thenReturn("1");
