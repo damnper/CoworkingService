@@ -16,6 +16,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * Initializes Liquibase for database migrations.
+ * This class is responsible for setting up Liquibase with the configured properties,
+ * creating necessary schemas if they do not exist, and running the migrations.
+ */
 @Configuration
 @RequiredArgsConstructor
 public class LiquibaseInitializer {
@@ -31,6 +36,12 @@ public class LiquibaseInitializer {
 
     private final DatabaseManager databaseManager;
 
+    /**
+     * Initializes Liquibase by setting up the database connection,
+     * creating the schema if it does not exist, and running the migrations.
+     *
+     * @return a message indicating the success of the initialization
+     */
     @PostConstruct
     public String initializeLiquibase() {
         try (Connection connection = databaseManager.getConnection()) {
@@ -49,12 +60,24 @@ public class LiquibaseInitializer {
         return "Liquibase initialized successfully";
     }
 
+    /**
+     * Creates the schema if it does not exist.
+     *
+     * @param connection the database connection
+     * @throws SQLException if a database access error occurs
+     */
     private void createSchemaIfNotExists(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + liquibaseSchema);
         }
     }
 
+    /**
+     * Runs the Liquibase update command to apply migrations.
+     *
+     * @param database the database object
+     * @throws CommandExecutionException if an error occurs during command execution
+     */
     private void update(Database database) throws CommandExecutionException {
         CommandScope updateCommand = new CommandScope(UpdateCommandStep.COMMAND_NAME);
         updateCommand.addArgumentValue("database", database);

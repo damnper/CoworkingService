@@ -113,6 +113,7 @@ public class BookingRepositoryTest {
         assertEquals(booking.getEndTime(), retrievedBooking.getEndTime());
     }
 
+
     /**
      * Test case for retrieving a booking by ID.
      *

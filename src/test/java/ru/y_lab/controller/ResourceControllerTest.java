@@ -14,11 +14,14 @@ import ru.y_lab.dto.ResourceDTO;
 import ru.y_lab.dto.ResourceWithOwnerDTO;
 import ru.y_lab.dto.UpdateResourceRequestDTO;
 import ru.y_lab.enums.ResourceType;
+import ru.y_lab.exception.AuthorizationException;
+import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.service.ResourceService;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @DisplayName("ResourceController Tests")
@@ -55,6 +58,20 @@ class ResourceControllerTest {
     }
 
     @Test
+    @DisplayName("Add Resource - Invalid Data")
+    void addResourceInvalidData() {
+        AddResourceRequestDTO addResourceRequest = new AddResourceRequestDTO("");
+        ResourceType resourceType = ResourceType.CONFERENCE_ROOM;
+
+        when(resourceService.addResource(addResourceRequest, resourceType, httpRequest)).thenThrow(new IllegalArgumentException("Invalid resource name"));
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> resourceController.addResource(addResourceRequest, resourceType, httpRequest));
+
+        assertEquals("Invalid resource name", exception.getMessage());
+        verify(resourceService).addResource(addResourceRequest, resourceType, httpRequest);
+    }
+
+    @Test
     @DisplayName("Get Resource By ID")
     void getResourceById() {
         Long resourceId = 1L;
@@ -66,6 +83,19 @@ class ResourceControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(resourceWithOwnerDTO, response.getBody());
+        verify(resourceService).getResourceById(resourceId, httpRequest);
+    }
+
+    @Test
+    @DisplayName("Get Resource By ID - Not Found")
+    void getResourceByIdNotFound() {
+        Long resourceId = 1L;
+
+        when(resourceService.getResourceById(resourceId, httpRequest)).thenThrow(new ResourceNotFoundException("Resource not found"));
+
+        Exception exception = assertThrows(ResourceNotFoundException.class, () -> resourceController.getResourceById(resourceId, httpRequest));
+
+        assertEquals("Resource not found", exception.getMessage());
         verify(resourceService).getResourceById(resourceId, httpRequest);
     }
 
@@ -87,6 +117,17 @@ class ResourceControllerTest {
     }
 
     @Test
+    @DisplayName("Get All Resources - Unauthorized")
+    void getAllResourcesUnauthorized() {
+        when(resourceService.getAllResources(httpRequest)).thenThrow(new AuthorizationException("Not authorized"));
+
+        Exception exception = assertThrows(AuthorizationException.class, () -> resourceController.getAllResources(httpRequest));
+
+        assertEquals("Not authorized", exception.getMessage());
+        verify(resourceService).getAllResources(httpRequest);
+    }
+
+    @Test
     @DisplayName("Update Resource")
     void updateResource() {
         Long resourceId = 1L;
@@ -104,6 +145,21 @@ class ResourceControllerTest {
     }
 
     @Test
+    @DisplayName("Update Resource - Not Found")
+    void updateResourceNotFound() {
+        Long resourceId = 1L;
+        UpdateResourceRequestDTO updateRequest = new UpdateResourceRequestDTO("UpdatedResourceName");
+        ResourceType resourceType = ResourceType.CONFERENCE_ROOM;
+
+        when(resourceService.updateResource(resourceId, updateRequest, resourceType, httpRequest)).thenThrow(new ResourceNotFoundException("Resource not found"));
+
+        Exception exception = assertThrows(ResourceNotFoundException.class, () -> resourceController.updateResource(resourceId, updateRequest, resourceType, httpRequest));
+
+        assertEquals("Resource not found", exception.getMessage());
+        verify(resourceService).updateResource(resourceId, updateRequest, resourceType, httpRequest);
+    }
+
+    @Test
     @DisplayName("Delete Resource")
     void deleteResource() {
         Long resourceId = 1L;
@@ -113,6 +169,32 @@ class ResourceControllerTest {
         ResponseEntity<Void> response = resourceController.deleteResource(resourceId, httpRequest);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(resourceService).deleteResource(resourceId, httpRequest);
+    }
+
+    @Test
+    @DisplayName("Delete Resource - Not Found")
+    void deleteResourceNotFound() {
+        Long resourceId = 1L;
+
+        doThrow(new ResourceNotFoundException("Resource not found")).when(resourceService).deleteResource(resourceId, httpRequest);
+
+        Exception exception = assertThrows(ResourceNotFoundException.class, () -> resourceController.deleteResource(resourceId, httpRequest));
+
+        assertEquals("Resource not found", exception.getMessage());
+        verify(resourceService).deleteResource(resourceId, httpRequest);
+    }
+
+    @Test
+    @DisplayName("Delete Resource - Unauthorized")
+    void deleteResourceUnauthorized() {
+        Long resourceId = 1L;
+
+        doThrow(new AuthorizationException("Not authorized")).when(resourceService).deleteResource(resourceId, httpRequest);
+
+        Exception exception = assertThrows(AuthorizationException.class, () -> resourceController.deleteResource(resourceId, httpRequest));
+
+        assertEquals("Not authorized", exception.getMessage());
         verify(resourceService).deleteResource(resourceId, httpRequest);
     }
 }

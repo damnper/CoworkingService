@@ -1,6 +1,5 @@
 package ru.y_lab.service;
 
-import javax.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import ru.y_lab.dto.*;
+import ru.y_lab.exception.*;
 import ru.y_lab.mapper.BookingMapper;
 import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
@@ -19,14 +19,15 @@ import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.impl.BookingServiceImpl;
 import ru.y_lab.util.AuthenticationUtil;
 
+import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @DisplayName("BookingServiceImpl Tests - addBooking")
 class BookingServiceImplTest {
@@ -91,6 +92,60 @@ class BookingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Add Booking - Resource Not Found")
+    void addBookingResourceNotFound() {
+        AddBookingRequestDTO requestDTO = new AddBookingRequestDTO(1L, 1721469600000L, 1721473200000L);
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.addBooking(requestDTO, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verifyNoInteractions(dateTimeMapper, bookingRepository, bookingMapper);
+    }
+
+    @Test
+    @DisplayName("Add Booking - Authentication Failed")
+    void addBookingAuthenticationFailed() {
+        AddBookingRequestDTO requestDTO = new AddBookingRequestDTO(1L, 1721469600000L, 1721473200000L);
+
+        when(authUtil.authenticate(req, "USER")).thenThrow(new AuthenticateException("Authentication failed"));
+
+        assertThrows(AuthenticateException.class, () -> bookingService.addBooking(requestDTO, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verifyNoInteractions(resourceRepository, dateTimeMapper, bookingRepository, bookingMapper);
+    }
+
+    @Test
+    @DisplayName("Add Booking - Booking Conflict")
+    void addBookingConflict() {
+        AddBookingRequestDTO requestDTO = new AddBookingRequestDTO(1L, 1721469600000L, 1721473200000L);
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+        Resource resource = Resource.builder().id(1L).name("Resource").type("Type").build();
+        LocalDateTime startDateTime = LocalDateTime.of(2024, 7, 20, 10, 0);
+        LocalDateTime endDateTime = LocalDateTime.of(2024, 7, 20, 12, 0);
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(dateTimeMapper.toLocalDateTime(1721469600000L)).thenReturn(startDateTime);
+        when(dateTimeMapper.toLocalDateTime(1721473200000L)).thenReturn(endDateTime);
+        doThrow(new BookingConflictException("Booking conflict")).when(bookingRepository).addBooking(any(Booking.class));
+
+        assertThrows(BookingConflictException.class, () -> bookingService.addBooking(requestDTO, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verify(dateTimeMapper).toLocalDateTime(1721469600000L);
+        verify(dateTimeMapper).toLocalDateTime(1721473200000L);
+        verify(bookingRepository).addBooking(any(Booking.class));
+        verifyNoInteractions(bookingMapper);
+    }
+
+    @Test
     @DisplayName("Get Booking By ID")
     void getBookingById() {
         UserDTO currentUser = new UserDTO(1L, "user", "USER");
@@ -141,6 +196,60 @@ class BookingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Get Booking By ID - Booking Not Found")
+    void getBookingByIdBookingNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(BookingNotFoundException.class, () -> bookingService.getBookingById(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(bookingRepository).getBookingById(1L);
+        verifyNoInteractions(resourceRepository, userRepository, bookingMapper);
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - Resource Not Found")
+    void getBookingByIdResourceNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+        Booking booking = Booking.builder().id(1L).userId(1L).resourceId(1L).startTime(LocalDateTime.now()).endTime(LocalDateTime.now().plusHours(1)).build();
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(booking));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingById(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(bookingRepository).getBookingById(1L);
+        verify(resourceRepository).getResourceById(1L);
+        verifyNoInteractions(userRepository, bookingMapper);
+    }
+
+    @Test
+    @DisplayName("Get Booking By ID - User Not Found")
+    void getBookingByIdUserNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+        Booking booking = Booking.builder().id(1L).userId(1L).resourceId(1L).startTime(LocalDateTime.now()).endTime(LocalDateTime.now().plusHours(1)).build();
+        Resource resource = Resource.builder().id(1L).name("Resource").type("Type").build();
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(booking));
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> bookingService.getBookingById(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(bookingRepository).getBookingById(1L);
+        verify(resourceRepository).getResourceById(1L);
+        verify(userRepository).getUserById(1L);
+        verifyNoInteractions(bookingMapper);
+    }
+
+    @Test
     @DisplayName("Get All Bookings")
     void getAllBookings() {
         UserDTO currentUser = new UserDTO(1L, "user", "USER");
@@ -163,6 +272,21 @@ class BookingServiceImplTest {
         verify(userRepository).getUserById(1L);
         verify(resourceRepository).getResourceById(1L);
         verify(bookingMapper).toBookingWithOwnerResourceDTO(booking, resource, user);
+    }
+
+    @Test
+    @DisplayName("Get All Bookings - No Bookings Found")
+    void getAllBookingsNoBookingsFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "ADMIN")).thenReturn(currentUser);
+        when(bookingRepository.getAllBookings()).thenReturn(Optional.empty());
+
+        assertThrows(BookingNotFoundException.class, () -> bookingService.getAllBookings(req));
+
+        verify(authUtil).authenticate(req, "ADMIN");
+        verify(bookingRepository).getAllBookings();
+        verifyNoInteractions(userRepository, resourceRepository, bookingMapper);
     }
 
     @Test
@@ -195,6 +319,31 @@ class BookingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Update Booking - Booking Conflict")
+    void updateBookingConflict() {
+        UpdateBookingRequestDTO requestDTO = new UpdateBookingRequestDTO(1721477580000L, 1721480400000L);
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+        Booking existingBooking = Booking.builder().id(1L).userId(1L).resourceId(1L).startTime(LocalDateTime.of(2023, 7, 12, 10, 0)).endTime(LocalDateTime.of(2023, 7, 12, 12, 0)).build();
+        LocalDateTime newStartDateTime = LocalDateTime.of(2024, 7, 20, 14, 0);
+        LocalDateTime newEndDateTime = LocalDateTime.of(2024, 7, 20, 16, 0);
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.of(existingBooking));
+        when(dateTimeMapper.toLocalDateTime(1721477580000L)).thenReturn(newStartDateTime);
+        when(dateTimeMapper.toLocalDateTime(1721480400000L)).thenReturn(newEndDateTime);
+        doThrow(new BookingConflictException("Booking conflict")).when(bookingRepository).updateBooking(existingBooking);
+
+        assertThrows(BookingConflictException.class, () -> bookingService.updateBooking(1L, requestDTO, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(bookingRepository).getBookingById(1L);
+        verify(dateTimeMapper).toLocalDateTime(1721477580000L);
+        verify(dateTimeMapper).toLocalDateTime(1721480400000L);
+        verify(bookingRepository).updateBooking(existingBooking);
+        verifyNoInteractions(bookingMapper);
+    }
+
+    @Test
     @DisplayName("Delete Booking")
     void deleteBooking() {
         UserDTO currentUser = new UserDTO(1L, "user", "USER");
@@ -208,5 +357,20 @@ class BookingServiceImplTest {
         verify(authUtil).authenticate(req, "USER");
         verify(bookingRepository).getBookingById(1L);
         verify(bookingRepository).deleteBooking(1L);
+    }
+
+    @Test
+    @DisplayName("Delete Booking - Booking Not Found")
+    void deleteBookingNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(bookingRepository.getBookingById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(BookingNotFoundException.class, () -> bookingService.deleteBooking(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(bookingRepository).getBookingById(1L);
+        verify(bookingRepository, never()).deleteBooking(anyLong());
     }
 }

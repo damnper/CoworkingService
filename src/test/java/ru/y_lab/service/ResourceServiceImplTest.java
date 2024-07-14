@@ -10,6 +10,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import ru.y_lab.dto.*;
 import ru.y_lab.enums.ResourceType;
+import ru.y_lab.exception.ResourceNotFoundException;
+import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.ResourceMapper;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -77,6 +80,7 @@ public class ResourceServiceImplTest {
         when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
         when(resourceRepository.addResource(any(Resource.class))).thenReturn(savedResource);
         when(resourceMapper.toDTO(savedResource)).thenReturn(resourceDTO);
+        when(req.getSession(false)).thenReturn(session);
 
         ResourceDTO result = resourceService.addResource(requestDTO, resourceType, req);
 
@@ -108,6 +112,7 @@ public class ResourceServiceImplTest {
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
         when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
         when(resourceMapper.toResourceWithOwnerDTO(resource, user)).thenReturn(resourceWithOwnerDTO);
+        when(req.getSession(false)).thenReturn(session);
 
         ResourceWithOwnerDTO result = resourceService.getResourceById(1L, req);
 
@@ -116,6 +121,47 @@ public class ResourceServiceImplTest {
         verify(resourceRepository).getResourceById(1L);
         verify(userRepository).getUserById(1L);
         verify(resourceMapper).toResourceWithOwnerDTO(resource, user);
+    }
+
+    @Test
+    @DisplayName("Get Resource By ID - Resource Not Found")
+    void getResourceById_ResourceNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+        when(req.getSession(false)).thenReturn(session);
+
+        assertThrows(ResourceNotFoundException.class, () -> resourceService.getResourceById(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verify(userRepository, never()).getUserById(anyLong());
+        verify(resourceMapper, never()).toResourceWithOwnerDTO(any(Resource.class), any(User.class));
+    }
+
+    @Test
+    @DisplayName("Get Resource By ID - User Not Found")
+    void getResourceById_UserNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+        Resource resource = Resource.builder()
+                .id(1L)
+                .userId(1L)
+                .name("ResourceName")
+                .type("ResourceType")
+                .build();
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
+        when(userRepository.getUserById(1L)).thenReturn(Optional.empty());
+        when(req.getSession(false)).thenReturn(session);
+
+        assertThrows(UserNotFoundException.class, () -> resourceService.getResourceById(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verify(userRepository).getUserById(1L);
+        verify(resourceMapper, never()).toResourceWithOwnerDTO(any(Resource.class), any(User.class));
     }
 
     @Test
@@ -155,6 +201,7 @@ public class ResourceServiceImplTest {
         when(userRepository.getUserById(2L)).thenReturn(Optional.of(user2));
         when(resourceMapper.toResourceWithOwnerDTO(resource1, user1)).thenReturn(resourceDTO1);
         when(resourceMapper.toResourceWithOwnerDTO(resource2, user2)).thenReturn(resourceDTO2);
+        when(req.getSession(false)).thenReturn(session);
 
         List<ResourceWithOwnerDTO> result = resourceService.getAllResources(req);
 
@@ -192,6 +239,7 @@ public class ResourceServiceImplTest {
         doNothing().when(authUtil).authorize(currentUser, resource.getUserId());
         when(resourceRepository.updateResource(resource)).thenReturn(updatedResource);
         when(resourceMapper.toDTO(updatedResource)).thenReturn(resourceDTO);
+        when(req.getSession(false)).thenReturn(session);
 
         ResourceDTO result = resourceService.updateResource(1L, requestDTO, resourceType, req);
 
@@ -201,6 +249,26 @@ public class ResourceServiceImplTest {
         verify(authUtil).authorize(currentUser, resource.getUserId());
         verify(resourceRepository).updateResource(resource);
         verify(resourceMapper).toDTO(updatedResource);
+    }
+
+    @Test
+    @DisplayName("Update Resource - Resource Not Found")
+    void updateResource_ResourceNotFound() {
+        UpdateResourceRequestDTO requestDTO = new UpdateResourceRequestDTO("UpdatedResource");
+        ResourceType resourceType = ResourceType.CONFERENCE_ROOM;
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+        when(req.getSession(false)).thenReturn(session);
+
+        assertThrows(ResourceNotFoundException.class, () -> resourceService.updateResource(1L, requestDTO, resourceType, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verify(authUtil, never()).authorize(any(UserDTO.class), anyLong());
+        verify(resourceRepository, never()).updateResource(any(Resource.class));
+        verify(resourceMapper, never()).toDTO(any(Resource.class));
     }
 
     @Test
@@ -215,6 +283,7 @@ public class ResourceServiceImplTest {
                 .build();
 
         when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(req.getSession(false)).thenReturn(session);
         when(resourceRepository.getResourceById(1L)).thenReturn(Optional.of(resource));
         doNothing().when(authUtil).authorize(currentUser, resource.getUserId());
 
@@ -224,5 +293,22 @@ public class ResourceServiceImplTest {
         verify(resourceRepository).getResourceById(1L);
         verify(authUtil).authorize(currentUser, resource.getUserId());
         verify(resourceRepository).deleteResource(1L);
+    }
+
+    @Test
+    @DisplayName("Delete Resource - Resource Not Found")
+    void deleteResource_ResourceNotFound() {
+        UserDTO currentUser = new UserDTO(1L, "user", "USER");
+
+        when(authUtil.authenticate(req, "USER")).thenReturn(currentUser);
+        when(resourceRepository.getResourceById(1L)).thenReturn(Optional.empty());
+        when(req.getSession(false)).thenReturn(session);
+
+        assertThrows(ResourceNotFoundException.class, () -> resourceService.deleteResource(1L, req));
+
+        verify(authUtil).authenticate(req, "USER");
+        verify(resourceRepository).getResourceById(1L);
+        verify(authUtil, never()).authorize(any(UserDTO.class), anyLong());
+        verify(resourceRepository, never()).deleteResource(anyLong());
     }
 }

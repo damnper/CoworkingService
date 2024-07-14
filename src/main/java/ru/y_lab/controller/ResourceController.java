@@ -1,5 +1,6 @@
 package ru.y_lab.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,17 +11,20 @@ import ru.y_lab.dto.ResourceWithOwnerDTO;
 import ru.y_lab.dto.UpdateResourceRequestDTO;
 import ru.y_lab.enums.ResourceType;
 import ru.y_lab.service.ResourceService;
+import ru.y_lab.swagger.API.ResourceControllerAPI;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
- * ResourceController handles HTTP requests for managing resources.
+ * Controller for managing resources.
+ * This class handles HTTP requests for creating, retrieving, updating, and deleting resources.
  */
+@Tag(name = "Resource API", description = "Operations about resources")
 @RestController
 @RequestMapping("/resources")
 @RequiredArgsConstructor
-public class ResourceController {
+public class ResourceController implements ResourceControllerAPI {
 
     private final ResourceService resourceService;
 
@@ -28,8 +32,9 @@ public class ResourceController {
      * Adds a new resource.
      *
      * @param addResourceRequest the request containing resource details
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the added resource as a ResourceDTO
+     * @param resourceType the type of the resource
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the added resource as a {@link ResourceDTO} with HTTP status CREATED
      */
     @PostMapping
     public ResponseEntity<ResourceDTO> addResource(@RequestBody AddResourceRequestDTO addResourceRequest,
@@ -43,8 +48,8 @@ public class ResourceController {
      * Retrieves a resource by its ID.
      *
      * @param resourceId the ID of the resource
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the resource with owner details as a ResourceWithOwnerDTO
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the resource with owner details as a {@link ResourceWithOwnerDTO} with HTTP status OK
      */
     @GetMapping("/{resourceId}")
     public ResponseEntity<ResourceWithOwnerDTO> getResourceById(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest) {
@@ -55,8 +60,8 @@ public class ResourceController {
     /**
      * Retrieves all resources in the system.
      *
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing a list of all resources with their owner details
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing a list of all resources with their owner details as {@link ResourceWithOwnerDTO} with HTTP status OK
      */
     @GetMapping
     public ResponseEntity<List<ResourceWithOwnerDTO>> getAllResources(HttpServletRequest httpRequest) {
@@ -69,8 +74,9 @@ public class ResourceController {
      *
      * @param resourceId the ID of the resource to be updated
      * @param request the update request containing updated resource details
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the updated resource as a ResourceDTO
+     * @param resourceType the type of the resource
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the updated resource as a {@link ResourceDTO} with HTTP status OK
      */
     @PutMapping("/{resourceId}")
     public ResponseEntity<ResourceDTO> updateResource(@PathVariable("resourceId") Long resourceId,
@@ -85,8 +91,8 @@ public class ResourceController {
      * Deletes a resource by its ID.
      *
      * @param resourceId the ID of the resource to be deleted
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity with HTTP status NO_CONTENT
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} with HTTP status NO_CONTENT
      */
     @DeleteMapping("/{resourceId}")
     public ResponseEntity<Void> deleteResource(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest) {

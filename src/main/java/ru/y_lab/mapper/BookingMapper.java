@@ -9,9 +9,19 @@ import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 
+/**
+ * Mapper interface for converting between Booking entities and DTOs.
+ * This interface uses MapStruct for automatic mapping.
+ */
 @Mapper(componentModel = "spring")
 public interface BookingMapper {
 
+    /**
+     * Converts a Booking entity to a BookingDTO.
+     *
+     * @param booking the Booking entity to convert
+     * @return the converted BookingDTO
+     */
     @Mappings({
             @Mapping(source = "id", target = "id"),
             @Mapping(source = "userId", target = "userId"),
@@ -21,6 +31,15 @@ public interface BookingMapper {
     })
     BookingDTO toDTO(Booking booking);
 
+
+    /**
+     * Converts a Booking entity along with its associated Resource and User entities to a BookingWithOwnerResourceDTO.
+     *
+     * @param booking the Booking entity to convert
+     * @param resource the associated Resource entity
+     * @param user the associated User entity
+     * @return the converted BookingWithOwnerResourceDTO
+     */
     @Mappings({
             @Mapping(source = "user.id", target = "userId"),
             @Mapping(source = "resource.id", target = "resourceId"),

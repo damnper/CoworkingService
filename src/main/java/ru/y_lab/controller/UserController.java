@@ -17,10 +17,11 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
- * UserController handles HTTP requests for managing users.
+ * Controller for managing users.
+ * This class handles HTTP requests for creating, retrieving, updating, and deleting users.
  */
+@Tag(name = "User API", description = "Operations about users")
 @RestController
-@Tag(name = "users", description = "Operations about users")
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController implements UserControllerAPI {
@@ -31,7 +32,7 @@ public class UserController implements UserControllerAPI {
      * Registers a new user.
      *
      * @param request the registration request containing user details
-     * @return ResponseEntity containing the registered user as a UserDTO
+     * @return a {@link ResponseEntity} containing the registered user as a {@link UserDTO} with HTTP status CREATED
      */
     @PostMapping("/register")
     public ResponseEntity<UserDTO> registerUser(@RequestBody RegisterRequestDTO request) {
@@ -43,8 +44,8 @@ public class UserController implements UserControllerAPI {
      * Authenticates a user and logs them in.
      *
      * @param request the login request containing username and password
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the authenticated user as a UserDTO
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the authenticated user as a {@link UserDTO} with HTTP status OK
      */
     @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserDTO> loginUser(@RequestBody LoginRequestDTO request, HttpServletRequest httpRequest) {
@@ -56,8 +57,8 @@ public class UserController implements UserControllerAPI {
      * Retrieves a user by their ID.
      *
      * @param userId the ID of the user
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the user as a UserDTO
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the user as a {@link UserDTO} with HTTP status OK
      */
     @GetMapping("/{userId}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable("userId") Long userId, HttpServletRequest httpRequest) {
@@ -68,8 +69,8 @@ public class UserController implements UserControllerAPI {
     /**
      * Retrieves all users in the system. Only accessible by admin users.
      *
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing a list of all users as UserDTOs
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing a list of all users as {@link UserDTO} with HTTP status OK
      */
     @GetMapping("/all")
     public ResponseEntity<List<UserDTO>> getAllUsers(HttpServletRequest httpRequest) {
@@ -82,8 +83,8 @@ public class UserController implements UserControllerAPI {
      *
      * @param userId the ID of the user to be updated
      * @param updateRequest the update request containing updated user details
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity containing the updated user as a UserDTO
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} containing the updated user as a {@link UserDTO} with HTTP status OK
      */
     @PutMapping("/{userId}")
     public ResponseEntity<UserDTO> updateUser(@PathVariable("userId") Long userId, @RequestBody UpdateUserRequestDTO updateRequest, HttpServletRequest httpRequest) {
@@ -95,8 +96,8 @@ public class UserController implements UserControllerAPI {
      * Deletes a user by their ID.
      *
      * @param userId the ID of the user to be deleted
-     * @param httpRequest the HTTP request to get the session for authentication
-     * @return ResponseEntity with HTTP status NO_CONTENT
+     * @param httpRequest the HTTP request for session authentication
+     * @return a {@link ResponseEntity} with HTTP status NO_CONTENT
      */
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> deleteUser(@PathVariable("userId") Long userId, HttpServletRequest httpRequest) {

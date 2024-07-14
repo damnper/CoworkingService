@@ -9,9 +9,19 @@ import ru.y_lab.dto.ResourceWithOwnerDTO;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 
+/**
+ * Mapper interface for converting between Resource entities and DTOs.
+ * This interface uses MapStruct for automatic mapping.
+ */
 @Mapper(componentModel = "spring")
 public interface ResourceMapper {
 
+    /**
+     * Converts a Resource entity to a ResourceDTO.
+     *
+     * @param resource the Resource entity to convert
+     * @return the converted ResourceDTO
+     */
     @Mappings({
             @Mapping(source = "id", target = "id"),
             @Mapping(source = "userId", target = "ownerId"),
@@ -20,11 +30,18 @@ public interface ResourceMapper {
     })
     ResourceDTO toDTO(Resource resource);
 
+    /**
+     * Converts a Resource entity along with its associated User entity to a ResourceWithOwnerDTO.
+     *
+     * @param resource the Resource entity to convert
+     * @param user the associated User entity
+     * @return the converted ResourceWithOwnerDTO
+     */
     @Mappings({
             @Mapping(source = "resource.id", target = "id"),
             @Mapping(source = "resource.name", target = "resourceName"),
             @Mapping(source = "resource.type", target = "resourceType"),
-            @Mapping(source = "user.id", target = "userId"),
+            @Mapping(source = "user.id", target = "ownerId"),
             @Mapping(source = "user.username", target = "ownerName")
     })
     ResourceWithOwnerDTO toResourceWithOwnerDTO(Resource resource, User user);

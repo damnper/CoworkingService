@@ -81,7 +81,7 @@ public class UserServiceImpl implements UserService {
     public UserDTO getUserById(Long userId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
         User user = userRepository.getUserById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         return userMapper.toDTO(user);
     }
 
@@ -120,12 +120,12 @@ public class UserServiceImpl implements UserService {
         validateUpdateUserRequest(request);
 
         User user = userRepository.getUserById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         user.setUsername(request.username());
         user.setPassword(request.password());
 
         User updatedUser = userRepository.updateUser(user)
-                .orElseThrow(() -> new UserNotFoundException("User not found after update by ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         return userMapper.toDTO(updatedUser);
     }
 
@@ -143,7 +143,7 @@ public class UserServiceImpl implements UserService {
         authUtil.authorize(currentUser, userId);
 
         User user = userRepository.getUserById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found for delete by ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
 
         userRepository.deleteUser(userId);
         shutdownSession(httpRequest);
