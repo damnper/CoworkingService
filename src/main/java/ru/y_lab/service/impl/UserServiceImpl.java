@@ -1,7 +1,5 @@
 package ru.y_lab.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -16,6 +14,8 @@ import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.AuthenticationUtil;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.util.List;
 
 import static ru.y_lab.enums.RoleType.ADMIN;
@@ -141,6 +141,10 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(Long userId, HttpServletRequest httpRequest) {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
+
+        User user = userRepository.getUserById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found for delete by ID: " + userId));
+
         userRepository.deleteUser(userId);
         shutdownSession(httpRequest);
     }
@@ -169,6 +173,8 @@ public class UserServiceImpl implements UserService {
      */
     private static void shutdownSession(HttpServletRequest httpRequest) {
         HttpSession session = httpRequest.getSession(false);
-        session.invalidate();
+        if (session != null) {
+            session.invalidate();
+        }
     }
 }

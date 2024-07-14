@@ -1,6 +1,6 @@
 package ru.y_lab.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -11,16 +11,19 @@ import ru.y_lab.dto.RegisterRequestDTO;
 import ru.y_lab.dto.UpdateUserRequestDTO;
 import ru.y_lab.dto.UserDTO;
 import ru.y_lab.service.UserService;
+import ru.y_lab.swagger.API.UserControllerAPI;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
  * UserController handles HTTP requests for managing users.
  */
 @RestController
+@Tag(name = "users", description = "Operations about users")
 @RequestMapping("/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements UserControllerAPI {
 
     private final UserService userService;
 

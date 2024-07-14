@@ -1,13 +1,13 @@
 package ru.y_lab.repo;
 
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.DatabaseException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,10 +18,10 @@ import java.util.Optional;
  * It interacts with the database to perform CRUD operations for users.
  */
 @Repository
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class UserRepository {
 
-    private final DataSource dataSource;
+    private DatabaseManager databaseManager;
 
     // SQL Queries as constants
     private static final String ADD_USER_SQL = "INSERT INTO coworking_service.users (id, username, password, role) VALUES (DEFAULT, ?, ?, ?)";
@@ -37,7 +37,7 @@ public class UserRepository {
      * @return the user with the specified ID
      */
     public User addUser(User user) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(ADD_USER_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, user.getUsername());
@@ -69,7 +69,7 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     public Optional<User> getUserById(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_USER_BY_ID_SQL)) {
             ps.setLong(1, id);
 
@@ -92,7 +92,7 @@ public class UserRepository {
      * @return the user with the specified username
      */
     public Optional<User> getUserByUsername(String username) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_USER_BY_USERNAME_SQL)) {
             ps.setString(1, username);
 
@@ -115,7 +115,7 @@ public class UserRepository {
      */
     public Optional<List<User>> getAllUsers() {
         List<User> users = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_ALL_USERS_SQL);
              ResultSet rs = ps.executeQuery()) {
 
@@ -134,7 +134,7 @@ public class UserRepository {
      * @return the updated user
      */
     public Optional<User> updateUser(User user) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement updatePs = connection.prepareStatement(UPDATE_USER_SQL);
              PreparedStatement selectPs = connection.prepareStatement(GET_USER_BY_ID_SQL)) {
 
@@ -172,7 +172,7 @@ public class UserRepository {
      * @throws UserNotFoundException if the user with the specified ID is not found
      */
     public void deleteUser(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_USER_SQL)) {
 
             ps.setLong(1, id);

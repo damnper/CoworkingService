@@ -1,15 +1,18 @@
 package ru.y_lab.util;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.SessionScope;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.UserDTO;
+import ru.y_lab.exception.AuthenticateException;
+import ru.y_lab.exception.AuthorizationException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.UserRepository;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import static ru.y_lab.enums.RoleType.ADMIN;
 
@@ -53,7 +56,7 @@ public class AuthenticationUtil {
     public UserDTO authenticate(HttpServletRequest request, String requiredRole) {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("currentUser") == null) {
-            throw new SecurityException("User is not authenticated");
+            throw new AuthenticateException("You are not logged in. Please log in to access this resource.");
         }
 
         UserDTO currentUser = (UserDTO) session.getAttribute("currentUser");
@@ -64,7 +67,7 @@ public class AuthenticationUtil {
         }
 
         if (requiredRole != null && !requiredRole.equals(currentUser.role())) {
-            throw new SecurityException("Access denied");
+            throw new AuthorizationException("You do not have the necessary permissions to access this resource.");
         }
 
         return currentUser;
@@ -79,7 +82,7 @@ public class AuthenticationUtil {
      */
     public void authorize(UserDTO currentUser, Long targetUserId) {
         if (!currentUser.role().equals("ADMIN") && !currentUser.id().equals(targetUserId)) {
-            throw new SecurityException("Access denied");
+            throw new AuthorizationException("You are not authorized to perform this action.");
         }
     }
 }

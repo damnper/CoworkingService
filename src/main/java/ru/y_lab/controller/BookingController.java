@@ -1,7 +1,6 @@
 package ru.y_lab.controller;
 
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.y_lab.dto.*;
 import ru.y_lab.service.BookingService;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 @RestController

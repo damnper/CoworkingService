@@ -1,6 +1,5 @@
 package ru.y_lab.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +11,7 @@ import ru.y_lab.dto.UpdateResourceRequestDTO;
 import ru.y_lab.enums.ResourceType;
 import ru.y_lab.service.ResourceService;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**

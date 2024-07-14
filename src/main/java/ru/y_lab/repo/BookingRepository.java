@@ -1,13 +1,13 @@
 package ru.y_lab.repo;
 
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.exception.DatabaseException;
 import ru.y_lab.model.Booking;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -19,10 +19,10 @@ import java.util.Optional;
  * It interacts with the database to perform CRUD operations for bookings.
  */
 @Repository
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class BookingRepository {
 
-    private final DataSource dataSource;
+    private DatabaseManager databaseManager;
 
     // SQL Queries as constants
     private static final String ADD_BOOKING_SQL = "INSERT INTO coworking_service.bookings (id, user_id, resource_id, start_time, end_time) VALUES (DEFAULT, ?, ?, ?, ?)";
@@ -40,7 +40,7 @@ public class BookingRepository {
      * @return the new booking
      */
     public Booking addBooking(Booking booking) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(ADD_BOOKING_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setLong(1, booking.getUserId());
@@ -72,7 +72,7 @@ public class BookingRepository {
      * @return the booking with the specified ID
      */
     public Optional<Booking> getBookingById(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_BOOKING_BY_ID_SQL)) {
             ps.setLong(1, id);
 
@@ -114,7 +114,7 @@ public class BookingRepository {
      */
     public Optional<List<Booking>> getBookingsByDate(LocalDate date) {
         List<Booking> result = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_BOOKINGS_BY_DATE_SQL)) {
             ps.setDate(1, Date.valueOf(date));
 
@@ -136,7 +136,7 @@ public class BookingRepository {
      */
     public Optional<List<Booking>> getAllBookings() {
         List<Booking> bookings = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery(GET_ALL_BOOKINGS_SQL)) {
 
@@ -156,7 +156,7 @@ public class BookingRepository {
      * @return the updated booking
      */
     public Booking updateBooking(Booking booking) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement updatePs = connection.prepareStatement(UPDATE_BOOKING_SQL);
              PreparedStatement selectPs = connection.prepareStatement(GET_BOOKING_BY_ID_SQL)) {
 
@@ -194,7 +194,7 @@ public class BookingRepository {
      * @throws BookingNotFoundException if the booking with the specified ID is not found
      */
     public void deleteBooking(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_BOOKING_SQL)) {
 
             ps.setLong(1, id);
@@ -210,7 +210,7 @@ public class BookingRepository {
 
     private Optional<List<Booking>> getBookings(String sql, Long id) {
         List<Booking> result = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, id);
 

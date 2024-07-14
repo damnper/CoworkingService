@@ -1,6 +1,5 @@
 package ru.y_lab.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -16,6 +15,7 @@ import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.util.AuthenticationUtil;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static ru.y_lab.enums.RoleType.USER;

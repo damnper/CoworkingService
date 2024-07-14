@@ -1,12 +1,12 @@
 package ru.y_lab.repo;
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.DatabaseException;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.model.Resource;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +17,10 @@ import java.util.Optional;
  * It interacts with the database to perform CRUD operations for resources.
  */
 @Repository
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class ResourceRepository {
 
-    private final DataSource dataSource;
+    private DatabaseManager databaseManager;
 
     // SQL Queries as constants
     private static final String ADD_RESOURCE_SQL = "INSERT INTO coworking_service.resources (id, user_id, name, type) VALUES (DEFAULT, ?, ?, ?)";
@@ -35,7 +35,7 @@ public class ResourceRepository {
      * @return the resource with the specified ID
      */
     public Resource addResource(Resource resource) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(ADD_RESOURCE_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setLong(1, resource.getUserId());
@@ -56,7 +56,7 @@ public class ResourceRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new DatabaseException("An error occurred while adding the resource. Please try again later.");
+            throw new DatabaseException("An error occurred while adding the resource. Please try again later." + e.getMessage());
         }
     }
 
@@ -66,7 +66,7 @@ public class ResourceRepository {
      * @return the resource with the specified ID
      */
     public Optional<Resource> getResourceById(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RESOURCE_BY_ID_SQL)) {
             ps.setLong(1, id);
 
@@ -89,7 +89,7 @@ public class ResourceRepository {
      */
     public Optional<List<Resource>> getAllResources() {
         List<Resource> resources = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery(GET_ALL_RESOURCES_SQL)) {
 
@@ -109,7 +109,7 @@ public class ResourceRepository {
      * @return the updated resource
      */
     public Resource updateResource(Resource resource) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement updatePs = connection.prepareStatement(UPDATE_RESOURCE_SQL);
              PreparedStatement selectPs = connection.prepareStatement(GET_RESOURCE_BY_ID_SQL)) {
 
@@ -146,7 +146,7 @@ public class ResourceRepository {
      * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
     public void deleteResource(Long id) {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_RESOURCE_SQL)) {
 
             ps.setLong(1, id);

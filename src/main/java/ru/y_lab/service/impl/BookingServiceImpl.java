@@ -1,6 +1,5 @@
 package ru.y_lab.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -20,6 +19,7 @@ import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.BookingService;
 import ru.y_lab.util.AuthenticationUtil;
 
+import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
