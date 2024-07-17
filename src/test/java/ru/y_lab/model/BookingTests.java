@@ -82,7 +82,7 @@ public class BookingTests {
         LocalDateTime startTime = LocalDateTime.of(2024, 6, 29, 10, 0);
         LocalDateTime endTime = LocalDateTime.of(2024, 6, 29, 12, 0);
         Booking booking = new Booking(1L, 2L, 3L, startTime, endTime);
-        String expectedString = "Booking(id=1, ownerId=2, resourceId=3, startTime=2024-06-29T10:00, endTime=2024-06-29T12:00)";
+        String expectedString = "Booking(resourceId=1, ownerId=2, resourceId=3, startTime=2024-06-29T10:00, endTime=2024-06-29T12:00)";
         assertEquals(expectedString, booking.toString());
     }
 

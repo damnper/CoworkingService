@@ -52,6 +52,9 @@ public interface UserRepo extends JpaRepository<User, Long> {
                     SET username = :username, password = :password, role = :role
                     WHERE id = :id
                     """, nativeQuery = true)
-    void updateUser(@Param("username") String username, @Param("password") String password, @Param("role") String role, @Param("id") Long id);
+    Optional<User> updateUser(@Param("username") String username,
+                    @Param("password") String password,
+                    @Param("role") String role,
+                    @Param("id") Long id);
 
 }

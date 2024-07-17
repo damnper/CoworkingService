@@ -10,14 +10,14 @@ import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.ResourceMapper;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
+import ru.y_lab.repo.ResourceRepo;
+import ru.y_lab.repo.UserRepo;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.util.AuthenticationUtil;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static ru.y_lab.enums.RoleType.USER;
-import static ru.y_lab.util.ValidationUtil.validateAddResourceRequest;
 import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
 
 /**
@@ -31,8 +31,8 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final AuthenticationUtil authUtil;
     private final ResourceMapper resourceMapper;
-    private final ResourceRepository resourceRepository;
-    private final UserRepository userRepository;
+    private final ResourceRepo resourceRepository;
+    private final UserRepo userRepository;
 
     /**
      * Adds a new resource to the system.
@@ -42,15 +42,14 @@ public class ResourceServiceImpl implements ResourceService {
      * @return the added resource as a ResourceDTO
      */
     @Override
-    public ResourceDTO addResource(AddResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest) {
-        validateAddResourceRequest(request);
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
+    public ResourceDTO addResource(AddResourceRequestDTO request, ResourceType resourceType) {
+
         Resource resource = Resource.builder()
-                .userId(currentUser.id())
-                .name(request.name())
+                .userId()
+                .name(request.resourceName())
                 .type(resourceType.name())
                 .build();
-        Resource savedResource = resourceRepository.addResource(resource);
+        Resource savedResource = resourceRepository.save(resource);
         return resourceMapper.toDTO(savedResource);
     }
 
@@ -113,7 +112,7 @@ public class ResourceServiceImpl implements ResourceService {
                 .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to update could not be found. Please check the ID and try again."));
         authUtil.authorize(currentUser, resource.getUserId());
 
-        resource.setName(request.name());
+        resource.setName(request.resourceName());
         resource.setType(resourceType.name());
 
         Resource updatedResource = resourceRepository.updateResource(resource);

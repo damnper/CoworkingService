@@ -24,8 +24,8 @@ public interface ResourceMapper {
      */
     @Mappings({
             @Mapping(source = "id", target = "id"),
-            @Mapping(source = "userId", target = "ownerId"),
-            @Mapping(source = "name", target = "resourceName"),
+            @Mapping(source = "ownerId", target = "ownerId"),
+            @Mapping(source = "resourceName", target = "resourceName"),
             @Mapping(source = "type", target = "type")
     })
     ResourceDTO toDTO(Resource resource);
@@ -38,10 +38,10 @@ public interface ResourceMapper {
      * @return the converted ResourceWithOwnerDTO
      */
     @Mappings({
-            @Mapping(source = "resource.id", target = "id"),
-            @Mapping(source = "resource.name", target = "resourceName"),
-            @Mapping(source = "resource.type", target = "resourceType"),
-            @Mapping(source = "user.id", target = "ownerId"),
+            @Mapping(source = "resource.resourceId", target = "id"),
+            @Mapping(source = "resource.resourceName", target = "resourceName"),
+            @Mapping(source = "resource.resourceType", target = "resourceType"),
+            @Mapping(source = "user.resourceId", target = "ownerId"),
             @Mapping(source = "user.username", target = "ownerName")
     })
     ResourceWithOwnerDTO toResourceWithOwnerDTO(Resource resource, User user);

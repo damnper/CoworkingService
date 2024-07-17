@@ -6,16 +6,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import ru.y_lab.dto.*;
+import ru.y_lab.dto.LoginRequestDTO;
+import ru.y_lab.dto.RegisterRequestDTO;
+import ru.y_lab.dto.UpdateUserRequestDTO;
+import ru.y_lab.dto.UserDTO;
 import ru.y_lab.swagger.shemas.AccessDeniedResponseSchema;
 import ru.y_lab.swagger.shemas.ForbiddenResponseSchema;
 import ru.y_lab.swagger.shemas.userAPI.UserIllegalArgumentResponseSchema;
 import ru.y_lab.swagger.shemas.userAPI.UserNotFoundResponseSchema;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 public interface UserControllerAPI {
@@ -64,7 +67,7 @@ public interface UserControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<UserDTO> getUserById(@PathVariable("userId") Long userId, HttpServletRequest httpRequest);
+    ResponseEntity<UserDTO> getUserById(@PathVariable("ownerId") Long userId, HttpServletRequest httpRequest);
 
     @Operation(summary = "Get all users",
             description = "Retrieves all users in the system. Only accessible by admin users.",
@@ -105,7 +108,9 @@ public interface UserControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<UserDTO> updateUser(@PathVariable("userId") Long userId, @RequestBody UpdateUserRequestDTO updateRequest, HttpServletRequest httpRequest);
+    ResponseEntity<UserDTO> updateUser(@PathVariable("ownerId") Long userId,
+                                       @RequestBody UpdateUserRequestDTO updateRequest,
+                                       HttpServletRequest httpRequest);
 
     @Operation(summary = "Delete user",
             description = "Deletes a user by their ID. Only accessible by the user themselves or an admin.",
@@ -122,5 +127,5 @@ public interface UserControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<Void> deleteUser(@PathVariable("userId") Long userId, HttpServletRequest httpRequest);
+    ResponseEntity<Void> deleteUser(@PathVariable("ownerId") Long userId, HttpServletRequest httpRequest);
 }

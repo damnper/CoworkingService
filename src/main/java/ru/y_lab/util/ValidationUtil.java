@@ -94,18 +94,18 @@ public class ValidationUtil {
      * @param request the AddResourceRequestDTO to validate
      */
     public static void validateAddResourceRequest(AddResourceRequestDTO request) {
-        if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
+        if (request.resourceName() == null || request.resourceName().isEmpty() || !validateName(request.resourceName())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
         }
     }
 
     /**
-     * Validates the UpdateResourceRequestDTO for resourceName and type.
+     * Validates the UpdateResourceRequestDTO for resourceName and resourceType.
      *
      * @param request the UpdateResourceRequestDTO to validate
      */
     public static void validateUpdateResourceRequest(UpdateResourceRequestDTO request) {
-        if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
+        if (request.resourceName() == null || request.resourceName().isEmpty() || !validateName(request.resourceName())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
         }
     }

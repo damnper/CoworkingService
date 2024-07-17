@@ -1,5 +1,7 @@
 package ru.y_lab.util;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.SessionScope;
@@ -9,9 +11,7 @@ import ru.y_lab.exception.AuthenticateException;
 import ru.y_lab.exception.AuthorizationException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import ru.y_lab.repo.UserRepo;
 
 import static ru.y_lab.enums.RoleType.ADMIN;
 
@@ -23,7 +23,7 @@ import static ru.y_lab.enums.RoleType.ADMIN;
 @RequiredArgsConstructor
 public class AuthenticationUtil {
 
-    private final UserRepository userRepository;
+    private final UserRepo userRepository;
 
     /**
      * Authenticates the user based on login request.
@@ -34,7 +34,7 @@ public class AuthenticationUtil {
      * @throws IllegalArgumentException if the provided password is incorrect
      */
     public User login(LoginRequestDTO loginRequest) {
-        User user = userRepository.getUserByUsername(loginRequest.username())
+        User user = userRepository.findByUsername(loginRequest.username())
                 .orElseThrow(() -> new UserNotFoundException("User not found with the provided credentials: " + loginRequest.username()));
 
         if (!user.getPassword().equals(loginRequest.password())) {

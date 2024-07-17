@@ -62,7 +62,7 @@ public class ResourceTests {
     @Test
     public void testResourceToString() {
         Resource resource = new Resource(1L, 2L, "ResourceName", "ResourceType");
-        String expectedString = "Resource(id=1, ownerId=2, resourceName=ResourceName, type=ResourceType)";
+        String expectedString = "Resource(resourceId=1, ownerId=2, resourceName=ResourceName, resourceType=ResourceType)";
         assertEquals(expectedString, resource.toString());
     }
 

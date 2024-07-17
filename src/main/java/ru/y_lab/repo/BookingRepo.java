@@ -33,7 +33,7 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
             INSERT INTO coworking_service.bookings (user_id, resource_id, start_time, end_time)
             VALUES (:userId, :resourceId, :startTime, :endTime)
             """, nativeQuery = true)
-    Booking addBooking(@Param("userId") Long userId,
+    Booking addBooking(@Param("ownerId") Long userId,
                    @Param("resourceId") Long resourceId,
                    @Param("startTime") LocalDate startTime,
                    @Param("endTime") LocalDate endTime);
@@ -48,7 +48,7 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
             SELECT * FROM coworking_service.bookings
             WHERE user_id = :userId
             """, nativeQuery = true)
-    List<Booking> findByUserId(@Param("userId") Long userId);
+    List<Booking> findByUserId(@Param("ownerId") Long userId);
 
     /**
      * Retrieves bookings by resource ID.
@@ -99,7 +99,7 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
             WHERE id = :id
             """, nativeQuery = true)
     Optional<Booking> updateBooking(@Param("id") Long id,
-                      @Param("userId") Long userId,
+                      @Param("ownerId") Long userId,
                       @Param("resourceId") Long resourceId,
                       @Param("startTime") LocalDate startTime,
                       @Param("endTime") LocalDate endTime);
