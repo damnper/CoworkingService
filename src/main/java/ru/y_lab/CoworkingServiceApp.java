@@ -1,28 +1,24 @@
 package ru.y_lab;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletRegistration;
-import org.springframework.web.WebApplicationInitializer;
-import org.springframework.web.context.ContextLoaderListener;
-import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
-import org.springframework.web.servlet.DispatcherServlet;
-import ru.y_lab.config.OpenApiConfiguration;
-import ru.y_lab.config.WebConfig;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
 
 /**
- * The CoworkingServiceApp class serves as the main application entry point for managing coworking resources and bookings.
+ * This class represents the main entry point for the CoworkingService application.
+ *
+ * @author Daler Yunusov
+ * @version 1.0
  */
-public class CoworkingServiceApp implements WebApplicationInitializer {
+@SpringBootApplication
+public class CoworkingServiceApp {
 
-    @Override
-    public void onStartup(ServletContext servletContext) {
-        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
-        context.scan("ru.y_lab.config");
-        context.register(WebConfig.class);
-        context.register(OpenApiConfiguration.class);
-        servletContext.addListener(new ContextLoaderListener(context));
-        ServletRegistration.Dynamic dispatcher = servletContext.addServlet("dispatcher", new DispatcherServlet(context));
-        dispatcher.setLoadOnStartup(1);
-        dispatcher.addMapping("/");
+    /**
+     * The main method that starts the Spring Boot application.
+     *
+     * @param args the command-line arguments
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(CoworkingServiceApp.class, args);
     }
 }
