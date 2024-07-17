@@ -27,7 +27,7 @@
             </column>
         </createTable>
 
-        <!-- Set default value for id column in the users table using the sequence -->
+        <!-- Set default value for resourceId column in the users table using the sequence -->
         <addDefaultValue columnName="id"
                          tableName="users"
                          defaultValueSequenceNext="users_id_seq"/>
@@ -48,7 +48,7 @@
             </column>
         </createTable>
 
-        <!-- Add auto-increment to the id column in the resources table -->
+        <!-- Add auto-increment to the resourceId column in the resources table -->
         <addDefaultValue columnName="id"
                          tableName="resources"
                          defaultValueSequenceNext="resources_id_seq"/>
@@ -72,7 +72,7 @@
             </column>
         </createTable>
 
-        <!-- Add auto-increment to the id column in the bookings table -->
+        <!-- Add auto-increment to the resourceId column in the bookings table -->
         <addDefaultValue columnName="id"
                          tableName="bookings"
                          defaultValueSequenceNext="bookings_id_seq"/>

@@ -63,7 +63,7 @@ public class UserTests {
     @Test
     public void testUserToString() {
         User user = new User(1L, "testUser", "password", "ADMIN");
-        String expectedString = "User(id=1, username=testUser, password=password, role=ADMIN)";
+        String expectedString = "User(resourceId=1, username=testUser, password=password, role=ADMIN)";
         assertEquals(expectedString, user.toString());
     }
 }

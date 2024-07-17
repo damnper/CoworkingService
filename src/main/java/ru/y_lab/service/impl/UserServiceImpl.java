@@ -1,5 +1,6 @@
 package ru.y_lab.service.impl;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -10,16 +11,15 @@ import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.UserMapper;
 import ru.y_lab.model.User;
+import ru.y_lab.repo.UserRepo;
+import ru.y_lab.service.SessionService;
 import ru.y_lab.service.UserService;
 import ru.y_lab.util.AuthenticationUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import java.util.List;
 
 import static ru.y_lab.enums.RoleType.ADMIN;
 import static ru.y_lab.enums.RoleType.USER;
-import static ru.y_lab.util.ValidationUtil.*;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
@@ -31,8 +31,9 @@ import static ru.y_lab.util.ValidationUtil.*;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
-    private final UserRepository userRepository;
+    private final UserRepo userRepo;
     private final AuthenticationUtil authUtil;
+    private final SessionService sessionService;
 
     /**
      * Registers a new user in the system.
@@ -42,15 +43,13 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserDTO registerUser(RegisterRequestDTO request) {
-        validateRegisterRequest(request);
-
         User user = User.builder()
                 .username(request.username())
                 .password(request.password())
                 .role("USER")
                 .build();
 
-        User registeredUser = userRepository.addUser(user);
+        User registeredUser = userRepo.save(user);
         return userMapper.toDTO(registeredUser);
     }
 
@@ -63,9 +62,8 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserDTO loginUser(LoginRequestDTO request, HttpServletRequest httpRequest) {
-        validateLoginRequest(request);
         UserDTO authenticatedUser = userMapper.toDTO(authUtil.login(request));
-        createSession(authenticatedUser, httpRequest);
+        sessionService.createSession(authenticatedUser, httpRequest);
         return authenticatedUser;
     }
 
@@ -79,7 +77,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDTO getUserById(Long userId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
-        User user = userRepository.getUserById(userId)
+        User user = userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         return userMapper.toDTO(user);
     }
@@ -95,8 +93,9 @@ public class UserServiceImpl implements UserService {
     public List<UserDTO> getAllUsers(HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, ADMIN.name());
 
-        List<User> users = userRepository.getAllUsers()
-                .orElseThrow(() -> new UserNotFoundException("No users found in the system."));
+        List<User> users = userRepo.findAllUsers();
+        if (users.isEmpty()) throw new UserNotFoundException("No users found in the system.");
+
         return users.stream()
                 .map(userMapper::toDTO)
                 .toList();
@@ -116,15 +115,12 @@ public class UserServiceImpl implements UserService {
     public UserDTO updateUser(Long userId, UpdateUserRequestDTO request, HttpServletRequest httpRequest) {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
-        validateUpdateUserRequest(request);
 
-        User user = userRepository.getUserById(userId)
+        User user = userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
-        user.setUsername(request.username());
-        user.setPassword(request.password());
+        User updatedUser = userRepo.updateUser(request.username(), request.password(), user.getRole(), user.getId())
+                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
 
-        User updatedUser = userRepository.updateUser(user)
-                .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         return userMapper.toDTO(updatedUser);
     }
 
@@ -141,39 +137,10 @@ public class UserServiceImpl implements UserService {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
 
-        User user = userRepository.getUserById(userId)
+        User user = userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
 
-        userRepository.deleteUser(userId);
-        shutdownSession(httpRequest);
-    }
-
-    /**
-     * Creates a session and stores the authenticated user in it.
-     *
-     * @param user the authenticated user
-     * @param request the HTTP request to get the session
-     */
-    private void createSession(UserDTO user, HttpServletRequest request) {
-        HttpSession session = request.getSession(true);
-        session.setAttribute("currentUser", user);
-        session.setMaxInactiveInterval(30 * 60); // Session timeout in seconds
-    }
-
-    /**
-     * Invalidates the current user session.
-     *
-     * <p>This method retrieves the current {@link HttpSession} from the provided {@link HttpServletRequest}
-     * and invalidates it, effectively logging out the user. If there is no current session,
-     * the method does nothing.</p>
-     *
-     * @param httpRequest the {@link HttpServletRequest} from which to retrieve the session
-     * @throws IllegalStateException if the session has already been invalidated
-     */
-    private static void shutdownSession(HttpServletRequest httpRequest) {
-        HttpSession session = httpRequest.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
+        userRepo.deleteById(userId);
+        sessionService.shutdownSession(httpRequest);
     }
 }

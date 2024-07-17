@@ -32,7 +32,7 @@ public class ResourceController implements ResourceControllerAPI {
      * Adds a new resource.
      *
      * @param addResourceRequest the request containing resource details
-     * @param resourceType the type of the resource
+     * @param resourceType the resourceType of the resource
      * @param httpRequest the HTTP request for session authentication
      * @return a {@link ResponseEntity} containing the added resource as a {@link ResourceDTO} with HTTP status CREATED
      */
@@ -74,7 +74,7 @@ public class ResourceController implements ResourceControllerAPI {
      *
      * @param resourceId the ID of the resource to be updated
      * @param request the update request containing updated resource details
-     * @param resourceType the type of the resource
+     * @param resourceType the resourceType of the resource
      * @param httpRequest the HTTP request for session authentication
      * @return a {@link ResponseEntity} containing the updated resource as a {@link ResourceDTO} with HTTP status OK
      */

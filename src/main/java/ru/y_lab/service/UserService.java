@@ -1,11 +1,11 @@
 package ru.y_lab.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import ru.y_lab.dto.LoginRequestDTO;
 import ru.y_lab.dto.RegisterRequestDTO;
 import ru.y_lab.dto.UpdateUserRequestDTO;
 import ru.y_lab.dto.UserDTO;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
