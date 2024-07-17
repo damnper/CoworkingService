@@ -37,7 +37,7 @@ public class CoworkingServiceConfig {
     @Bean
     public PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer = new PropertySourcesPlaceholderConfigurer();
-        propertySourcesPlaceholderConfigurer.setLocations(new ClassPathResource("application.properties"));
+        propertySourcesPlaceholderConfigurer.setLocations(new ClassPathResource("application.yml"));
         return propertySourcesPlaceholderConfigurer;
     }
 }

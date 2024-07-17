@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application.name: CoworkingService
+
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+      url: jdbc:postgresql://localhost:5437/coworkingdb
+      username: daler
+      password: daler123
+      driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties.hibernate.format_sql: true
+
+liquibase:
+    change-log-file: classpath:db/changelog.xml
+    default-schema-name: coworking_service
+    liquibase-schema-name: liquibase
+
+logging:
+    config: classpath:logback.xml
+
+springdoc:
+  api-docs:
+    path: /api-docs
