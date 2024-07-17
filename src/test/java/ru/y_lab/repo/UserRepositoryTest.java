@@ -4,8 +4,6 @@ import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import ru.y_lab.config.DatabaseConfig;
-import ru.y_lab.config.DatabaseManager;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
 

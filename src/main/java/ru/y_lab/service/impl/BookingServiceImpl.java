@@ -13,9 +13,6 @@ import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
-import ru.y_lab.repo.BookingRepository;
-import ru.y_lab.repo.ResourceRepository;
-import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.BookingService;
 import ru.y_lab.util.AuthenticationUtil;
 

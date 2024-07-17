@@ -15,7 +15,6 @@ import ru.y_lab.dto.UserDTO;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.UserMapper;
 import ru.y_lab.model.User;
-import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.impl.UserServiceImpl;
 import ru.y_lab.util.AuthenticationUtil;
 
