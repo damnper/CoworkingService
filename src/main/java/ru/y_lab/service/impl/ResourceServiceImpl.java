@@ -10,8 +10,6 @@ import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.ResourceMapper;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
-import ru.y_lab.repo.ResourceRepository;
-import ru.y_lab.repo.UserRepository;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.util.AuthenticationUtil;
 

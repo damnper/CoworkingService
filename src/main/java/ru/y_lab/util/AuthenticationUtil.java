@@ -9,7 +9,6 @@ import ru.y_lab.exception.AuthenticateException;
 import ru.y_lab.exception.AuthorizationException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.model.User;
-import ru.y_lab.repo.UserRepository;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
