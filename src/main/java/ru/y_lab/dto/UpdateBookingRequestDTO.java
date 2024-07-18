@@ -20,4 +20,4 @@ public record UpdateBookingRequestDTO(
         @NotNull(message = "End time cannot be null")
         @Schema(name = "endTime", description = "End time in milliseconds", example = "1721487600000")
         @Pattern(regexp = "^\\p{N}+$", message = "End time must be a valid number in milliseconds")
-        String endTime) { }
+        Long endTime) { }

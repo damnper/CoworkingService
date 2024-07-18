@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import ru.y_lab.validation.ValidResourceType;
 
 /**
  * ResourceDTO is a Data Transfer Object that represents a resource.
@@ -31,4 +32,5 @@ public record ResourceDTO(
 
         @NotBlank(message = "Resource resourceType cannot be blank")
         @Schema(name = "resourceType", description = "The resourceType of the resource", example = "CONFERENCE_ROOM")
+        @ValidResourceType
         String resourceType) {}

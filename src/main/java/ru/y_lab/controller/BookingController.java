@@ -2,15 +2,14 @@ package ru.y_lab.controller;
 
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.y_lab.dto.*;
 import ru.y_lab.service.BookingService;
-import ru.y_lab.swagger.API.BookingControllerAPI;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -19,9 +18,9 @@ import java.util.List;
  */
 @Tag(name = "Booking API", description = "Operations about bookings")
 @RestController
-@RequestMapping("/bookings")
+@RequestMapping("/api/v1/bookings")
 @RequiredArgsConstructor
-public class BookingController implements BookingControllerAPI {
+public class BookingController {
 
     private final BookingService bookingService;
 

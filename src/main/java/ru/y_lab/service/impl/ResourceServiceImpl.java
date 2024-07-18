@@ -1,5 +1,6 @@
 package ru.y_lab.service.impl;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -12,13 +13,12 @@ import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepo;
 import ru.y_lab.repo.UserRepo;
+import ru.y_lab.service.JWTService;
 import ru.y_lab.service.ResourceService;
-import ru.y_lab.util.AuthenticationUtil;
 
 import java.util.List;
 
 import static ru.y_lab.enums.RoleType.USER;
-import static ru.y_lab.util.ValidationUtil.validateUpdateResourceRequest;
 
 /**
  * The ResourceServiceImpl class provides an implementation of the ResourceService interface.
@@ -31,8 +31,9 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final AuthenticationUtil authUtil;
     private final ResourceMapper resourceMapper;
-    private final ResourceRepo resourceRepository;
-    private final UserRepo userRepository;
+    private final ResourceRepo resourceRepo;
+    private final UserRepo userRepo;
+    private final JWTService jwsService;
 
     /**
      * Adds a new resource to the system.
@@ -42,14 +43,15 @@ public class ResourceServiceImpl implements ResourceService {
      * @return the added resource as a ResourceDTO
      */
     @Override
-    public ResourceDTO addResource(AddResourceRequestDTO request, ResourceType resourceType) {
+    public ResourceDTO addResource(String token, AddResourceRequestDTO request, ResourceType resourceType) {
+        Long userId = jwsService.extractUserId(token);
 
         Resource resource = Resource.builder()
-                .userId()
+                .userId(userId)
                 .name(request.resourceName())
                 .type(resourceType.name())
                 .build();
-        Resource savedResource = resourceRepository.save(resource);
+        Resource savedResource = resourceRepo.save(resource);
         return resourceMapper.toDTO(savedResource);
     }
 
@@ -65,9 +67,9 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public ResourceWithOwnerDTO getResourceById(Long resourceId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
-        Resource resource = resourceRepository.getResourceById(resourceId)
+        Resource resource = resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The requested resource could not be found. Please check the ID and try again."));
-        User user = userRepository.getUserById(resource.getUserId())
+        User user = userRepo.findById(resource.getUserId())
                 .orElseThrow(() -> new UserNotFoundException("The owner of this resource could not be found. Please try again later."));
         return resourceMapper.toResourceWithOwnerDTO(resource, user);
     }
@@ -82,11 +84,12 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public List<ResourceWithOwnerDTO> getAllResources(HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
-        List<Resource> resources = resourceRepository.getAllResources()
-                .orElseThrow(() -> new ResourceNotFoundException("No resources found in the system."));
+        List<Resource> resources = resourceRepo.findAllResources();
+        if (resources.isEmpty()) throw new ResourceNotFoundException("No resources found in the system.");
+
         return resources.stream()
                 .map(resource -> {
-                    User user = userRepository.getUserById(resource.getUserId())
+                    User user = userRepo.findById(resource.getUserId())
                             .orElseThrow(() -> new UserNotFoundException("The owner of one or more resources could not be found. Please try again later."));
                     return resourceMapper.toResourceWithOwnerDTO(resource, user);
                 })
@@ -105,17 +108,14 @@ public class ResourceServiceImpl implements ResourceService {
      */
     @Override
     public ResourceDTO updateResource(Long resourceId, UpdateResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest) {
-        validateUpdateResourceRequest(request);
 
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Resource resource = resourceRepository.getResourceById(resourceId)
+        Resource resource = resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to update could not be found. Please check the ID and try again."));
         authUtil.authorize(currentUser, resource.getUserId());
 
-        resource.setName(request.resourceName());
-        resource.setType(resourceType.name());
-
-        Resource updatedResource = resourceRepository.updateResource(resource);
+        Resource updatedResource = resourceRepo.updateResource(request.resourceName(), request.resourceType(), resource.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to update could not be found. Please check the ID and try again."));
         return resourceMapper.toDTO(updatedResource);
     }
 
@@ -130,9 +130,10 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public void deleteResource(Long resourceId, HttpServletRequest httpRequest) {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Resource resource = resourceRepository.getResourceById(resourceId)
+
+        Resource resource = resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to delete could not be found. Please check the ID and try again."));
         authUtil.authorize(currentUser, resource.getUserId());
-        resourceRepository.deleteResource(resourceId);
+        resourceRepo.deleteResource(resourceId);
     }
 }
