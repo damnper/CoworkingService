@@ -1,5 +1,6 @@
 package ru.y_lab.service.impl;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.y_lab.annotation.Loggable;
@@ -13,14 +14,17 @@ import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
 import ru.y_lab.model.User;
+import ru.y_lab.repo.BookingRepo;
+import ru.y_lab.repo.ResourceRepo;
+import ru.y_lab.repo.UserRepo;
 import ru.y_lab.service.BookingService;
-import ru.y_lab.util.AuthenticationUtil;
 
-import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import static ru.y_lab.enums.RoleType.ADMIN;
 import static ru.y_lab.enums.RoleType.USER;
@@ -39,9 +43,9 @@ public class BookingServiceImpl implements BookingService {
     private final AuthenticationUtil authUtil;
     private final BookingMapper bookingMapper;
     private final CustomDateTimeMapper dateTimeMapper;
-    private final UserRepository userRepository;
-    private final ResourceRepository resourceRepository;
-    private final BookingRepository bookingRepository;
+    private final UserRepo userRepo;
+    private final ResourceRepo resourceRepo;
+    private final BookingRepo bookingRepo;
 
     /**
      * Adds a new booking to the system.
@@ -52,10 +56,9 @@ public class BookingServiceImpl implements BookingService {
      */
     @Override
     public BookingDTO addBooking(AddBookingRequestDTO requestDTO, HttpServletRequest httpRequest) {
-        validateAddBookingRequest(requestDTO);
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         Long resourceId = requestDTO.resourceId();
-        Resource resource = resourceRepository.getResourceById(resourceId)
+        Resource resource = resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The requested resource was not found."));
 
         LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(requestDTO.startTime());
@@ -69,7 +72,7 @@ public class BookingServiceImpl implements BookingService {
                 .endTime(endDateTime)
                 .build();
         checkBookingConflicts(booking);
-        Booking savedBooking = bookingRepository.addBooking(booking);
+        Booking savedBooking = bookingRepo.save(booking);
         return bookingMapper.toDTO(savedBooking);
     }
 
@@ -84,11 +87,11 @@ public class BookingServiceImpl implements BookingService {
     public BookingWithOwnerResourceDTO getBookingById(Long bookingId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
 
-        Booking booking = bookingRepository.getBookingById(bookingId)
+        Booking booking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The requested booking was not found."));
-        Resource resource = resourceRepository.getResourceById(booking.getResourceId())
+        Resource resource = resourceRepo.findById(booking.getResourceId())
                 .orElseThrow(() -> new ResourceNotFoundException("The resource for the booking was not found."));
-        User user = userRepository.getUserById(booking.getUserId())
+        User user = userRepo.findById(booking.getUserId())
                 .orElseThrow(() -> new UserNotFoundException("The user who made the booking was not found."));
 
         return bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
@@ -106,8 +109,9 @@ public class BookingServiceImpl implements BookingService {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         authUtil.authorize(currentUser, userId);
 
-        List<Booking> allBookings = bookingRepository.getBookingsByUserId(userId)
-                .orElseThrow(() -> new BookingNotFoundException("No bookings were found for the user."));
+        List<Booking> allBookings = bookingRepo.findByUserId(userId);
+        if (allBookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found for the user.");
 
         return convertListBookingsToDTO(allBookings);
     }
@@ -121,8 +125,9 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingWithOwnerResourceDTO> getAllBookings(HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, ADMIN.name());
-        List<Booking> allBookings = bookingRepository.getAllBookings()
-                .orElseThrow(() -> new BookingNotFoundException("No bookings were found in the system."));
+        List<Booking> allBookings = bookingRepo.findAllBookings();
+        if(allBookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found in the system.");
 
         return convertListBookingsToDTO(allBookings);
     }
@@ -139,8 +144,9 @@ public class BookingServiceImpl implements BookingService {
         authUtil.authenticate(httpRequest, USER.name());
 
         LocalDate localDate = dateTimeMapper.toLocalDate(date);
-        List<Booking> allBookingsByDate = bookingRepository.getBookingsByDate(localDate)
-                .orElseThrow(() -> new BookingNotFoundException("No bookings were found for the specified date."));
+        List<Booking> allBookingsByDate = bookingRepo.findByDate(localDate);
+        if (allBookingsByDate.isEmpty())
+            throw new BookingNotFoundException("No bookings were found for the specified date.");
 
         return convertListBookingsToDTO(allBookingsByDate);
     }
@@ -156,8 +162,9 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingWithOwnerResourceDTO> getBookingsByUserId(Long userId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, ADMIN.name());
 
-        List<Booking> allBookingsByUserId = bookingRepository.getBookingsByUserId(userId)
-                .orElseThrow(() -> new BookingNotFoundException("The user who made the booking was not found or no bookings were found for the specified user."));
+        List<Booking> allBookingsByUserId = bookingRepo.findByUserId(userId);
+        if (allBookingsByUserId.isEmpty())
+            throw new BookingNotFoundException("The user who made the booking was not found or no bookings were found for the specified user.");
 
         return convertListBookingsToDTO(allBookingsByUserId);
     }
@@ -173,8 +180,8 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingWithOwnerResourceDTO> getBookingsByResourceId(Long resourceId, HttpServletRequest httpRequest) {
         authUtil.authenticate(httpRequest, USER.name());
 
-        List<Booking> allBookingsByUserId = bookingRepository.getBookingsByResourceId(resourceId)
-                .orElseThrow(() -> new BookingNotFoundException("The resource for the booking was not found or no bookings were found for the specified resource."));
+        List<Booking> allBookingsByUserId = bookingRepo.findByResourceId(resourceId);
+        if(allBookingsByUserId.isEmpty()) throw new BookingNotFoundException("The resource for the booking was not found or no bookings were found for the specified resource.");
 
         return convertListBookingsToDTO(allBookingsByUserId);
     }
@@ -193,8 +200,9 @@ public class BookingServiceImpl implements BookingService {
         Long resourceId = request.resourceId();
         LocalDate date = dateTimeMapper.toLocalDate(request.date());
 
-        List<Booking> bookings = bookingRepository.getBookingsByResourceId(resourceId)
-                .orElseThrow(() -> new BookingNotFoundException("The resource for the booking was not found or no bookings were found for the specified resource."));
+        List<Booking> bookings = bookingRepo.findByResourceId(resourceId);
+        if(bookings.isEmpty())
+            throw new BookingNotFoundException("The resource for the booking was not found or no bookings were found for the specified resource.");
         List<Booking> filteredBookings = filterBookingsByDate(bookings, date);
 
         return calculateAvailableSlots(filteredBookings);
@@ -213,7 +221,7 @@ public class BookingServiceImpl implements BookingService {
         validateUpdateBookingRequest(request);
 
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Booking existingBooking = bookingRepository.getBookingById(bookingId)
+        Booking existingBooking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The booking to be updated was not found."));
         authUtil.authorize(currentUser, existingBooking.getUserId());
 
@@ -225,7 +233,8 @@ public class BookingServiceImpl implements BookingService {
         existingBooking.setEndTime(endDateTime);
         checkBookingConflicts(existingBooking);
 
-        Booking updatedBooking = bookingRepository.updateBooking(existingBooking);
+        Booking updatedBooking = bookingRepo.updateBooking(startDateTime, endDateTime, existingBooking.getId())
+                .orElseThrow(() -> new BookingNotFoundException("The booking to be updated was not found."));
         return bookingMapper.toDTO(updatedBooking);
     }
 
@@ -238,11 +247,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public void deleteBooking(Long bookingId, HttpServletRequest httpRequest) {
         UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Booking booking = bookingRepository.getBookingById(bookingId)
+        Booking booking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The booking to be deleted was not found."));
         authUtil.authorize(currentUser, booking.getUserId());
 
-        bookingRepository.deleteBooking(bookingId);
+        bookingRepo.deleteBooking(bookingId);
     }
 
     /**
@@ -253,8 +262,7 @@ public class BookingServiceImpl implements BookingService {
      * @throws BookingConflictException if the resource is already booked during the specified time period
      */
     private void checkBookingConflicts(Booking booking) {
-        List<Booking> existingBookings = bookingRepository.getBookingsByResourceId(booking.getResourceId())
-                .orElseGet(Collections::emptyList)
+        List<Booking> existingBookings = bookingRepo.findByResourceId(booking.getResourceId())
                 .stream()
                 .filter(existingBooking -> !existingBooking.getId().equals(booking.getId()))
                 .toList();
@@ -326,9 +334,9 @@ public class BookingServiceImpl implements BookingService {
     private List<BookingWithOwnerResourceDTO> convertListBookingsToDTO(List<Booking> bookings) throws UserNotFoundException, ResourceNotFoundException {
         List<BookingWithOwnerResourceDTO> bookingWithOwnerResourceDTOList = new ArrayList<>();
         bookings.forEach(booking -> {
-            User user = userRepository.getUserById(booking.getUserId())
+            User user = userRepo.findById(booking.getUserId())
                     .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + booking.getUserId()));
-            Resource resource = resourceRepository.getResourceById(booking.getResourceId())
+            Resource resource = resourceRepo.findById(booking.getResourceId())
                     .orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + booking.getResourceId()));
             BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
             bookingWithOwnerResourceDTOList.add(bookingWithOwnerResourceDTO);

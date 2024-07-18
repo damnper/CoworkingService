@@ -1,10 +1,6 @@
 package ru.y_lab.service;
 
-import jakarta.servlet.http.HttpServletRequest;
-import ru.y_lab.dto.LoginRequestDTO;
-import ru.y_lab.dto.RegisterRequestDTO;
-import ru.y_lab.dto.UpdateUserRequestDTO;
-import ru.y_lab.dto.UserDTO;
+import ru.y_lab.dto.*;
 
 import java.util.List;
 
@@ -25,42 +21,34 @@ public interface UserService {
      * Authenticates a user and logs them in. Stores user information in the session.
      *
      * @param request the login request containing username and password
-     * @param httpRequest the HTTP request to get the session
      * @return the authenticated user as a UserDTO
      */
-    UserDTO loginUser(LoginRequestDTO request, HttpServletRequest httpRequest);
+    TokenResponseDTO loginUser(LoginRequestDTO request);
 
     /**
      * Retrieves a user by their ID.
      *
-     * @param userId the ID of the user
-     * @param httpRequest the HTTP request to get the session
      * @return the user as a UserDTO
      */
-    UserDTO getUserById(Long userId, HttpServletRequest httpRequest);
+    UserDTO getUserById(String token);
 
     /**
      * Retrieves all users in the system. Only accessible by admin users.
      *
-     * @param httpRequest the HTTP request to get the session
      * @return a list of all users as UserDTOs
      */
-    List<UserDTO> getAllUsers(HttpServletRequest httpRequest);
+    List<UserDTO> getAllUsers(String token);
 
     /**
      * Updates an existing user. Only accessible by the user themselves or an admin.
      *
-     * @param userId the ID of the user to be updated
      * @param request the update request containing updated user details
-     * @param httpRequest the HTTP request to get the session
      * @return the updated user as a UserDTO
      */
-    UserDTO updateUser(Long userId, UpdateUserRequestDTO request, HttpServletRequest httpRequest);
+    UserDTO updateUser(String token, UpdateUserRequestDTO request);
 
     /**
      * Deletes a user by their ID.
-     *
-     * @param userId the ID of the user to be deleted
      */
-    void deleteUser(Long userId, HttpServletRequest httpRequest);
+    void deleteUser(String token);
 }

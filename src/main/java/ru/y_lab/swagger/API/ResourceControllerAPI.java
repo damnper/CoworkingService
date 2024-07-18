@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.y_lab.dto.*;
@@ -15,7 +16,6 @@ import ru.y_lab.swagger.shemas.ForbiddenResponseSchema;
 import ru.y_lab.swagger.shemas.resourceAPI.ResourceIllegalArgumentResponseSchema;
 import ru.y_lab.swagger.shemas.resourceAPI.ResourceNotFoundResponseSchema;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 public interface ResourceControllerAPI {
@@ -37,9 +37,9 @@ public interface ResourceControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ForbiddenResponseSchema.class)))
     })
-    ResponseEntity<ResourceDTO> addResource(@RequestBody AddResourceRequestDTO addResourceRequest,
-                                                   @RequestParam ResourceType resourceType,
-                                                   HttpServletRequest httpRequest);
+    ResponseEntity<ResourceDTO> addResource(@RequestHeader("Authorization") String token,
+                                            @RequestBody AddResourceRequestDTO addResourceRequest,
+                                            @RequestParam ResourceType resourceType);
 
     @Operation(summary = "Get Resource By ID",
             description = "Retrieves the resource information based on its ID.",

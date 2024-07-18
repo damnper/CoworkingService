@@ -38,10 +38,13 @@ public interface ResourceRepo extends JpaRepository<Resource, Long> {
     @Modifying
     @Query(value = """
                     UPDATE coworking_service.resources
-                    SET user_id = :userId, name = :name, type = :type
+                    SET name = :name, type = :type
                     WHERE id = :id
                     """, nativeQuery = true)
-    Optional<Resource> updateResource(@Param("id") Long id, @Param("ownerId") Long userId, @Param("resourceName") String name, @Param("type") String type);
+    Optional<Resource> updateResource(
+                                      @Param("name") String name,
+                                      @Param("type") String type,
+                                      @Param("id") Long id);
 
     /**
      * Deletes a resource from the repository by its ID.

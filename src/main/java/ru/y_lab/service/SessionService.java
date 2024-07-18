@@ -12,7 +12,7 @@ public interface SessionService {
      * @param user the authenticated user
      * @param request the HTTP request to get the session
      */
-    public void createSession(UserDTO user, HttpServletRequest request);
+    void createSession(UserDTO user, HttpServletRequest request);
 
     /**
      * Invalidates the current user session.
@@ -24,5 +24,5 @@ public interface SessionService {
      * @param httpRequest the {@link HttpServletRequest} from which to retrieve the session
      * @throws IllegalStateException if the session has already been invalidated
      */
-    public void shutdownSession(HttpServletRequest httpRequest);
+    void shutdownSession(HttpServletRequest httpRequest);
 }

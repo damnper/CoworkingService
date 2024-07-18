@@ -1,9 +1,9 @@
 package ru.y_lab.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import ru.y_lab.dto.*;
 import ru.y_lab.enums.ResourceType;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -17,7 +17,7 @@ public interface ResourceService {
      * @param httpRequest the HTTP request to get the session for authentication
      * @return the added resource as a ResourceDTO
      */
-    ResourceDTO addResource(AddResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest);
+    ResourceDTO addResource(String token, AddResourceRequestDTO request, ResourceType resourceType);
 
     /**
      * Retrieves a resource by its ID.

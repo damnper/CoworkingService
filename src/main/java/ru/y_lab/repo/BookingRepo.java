@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import ru.y_lab.model.Booking;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,25 +21,6 @@ import java.util.Optional;
 public interface BookingRepo extends JpaRepository<Booking, Long> {
 
     /**
-     * Adds a new booking to the repository.
-     *
-     * @param userId the ID of the user associated with the booking
-     * @param resourceId the ID of the resource being booked
-     * @param startTime the start time of the booking
-     * @param endTime the end time of the booking
-     * @return the new Booking
-     */
-    @Modifying
-    @Query(value = """
-            INSERT INTO coworking_service.bookings (user_id, resource_id, start_time, end_time)
-            VALUES (:userId, :resourceId, :startTime, :endTime)
-            """, nativeQuery = true)
-    Booking addBooking(@Param("ownerId") Long userId,
-                   @Param("resourceId") Long resourceId,
-                   @Param("startTime") LocalDate startTime,
-                   @Param("endTime") LocalDate endTime);
-
-    /**
      * Retrieves bookings by user ID.
      *
      * @param userId the ID of the user
@@ -48,7 +30,7 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
             SELECT * FROM coworking_service.bookings
             WHERE user_id = :userId
             """, nativeQuery = true)
-    List<Booking> findByUserId(@Param("ownerId") Long userId);
+    List<Booking> findByUserId(@Param("userId") Long userId);
 
     /**
      * Retrieves bookings by resource ID.
@@ -86,8 +68,6 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
      * Updates an existing booking in the repository.
      *
      * @param id the ID of the booking to update
-     * @param userId the new user ID associated with the booking
-     * @param resourceId the new resource ID associated with the booking
      * @param startTime the new start time of the booking
      * @param endTime the new end time of the booking
      * @return optional Booking
@@ -95,14 +75,12 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
     @Modifying
     @Query(value = """
             UPDATE coworking_service.bookings
-            SET user_id = :userId, resource_id = :resourceId, start_time = :startTime, end_time = :endTime
+            SET start_time = :startTime, end_time = :endTime
             WHERE id = :id
             """, nativeQuery = true)
-    Optional<Booking> updateBooking(@Param("id") Long id,
-                      @Param("ownerId") Long userId,
-                      @Param("resourceId") Long resourceId,
-                      @Param("startTime") LocalDate startTime,
-                      @Param("endTime") LocalDate endTime);
+    Optional<Booking> updateBooking(@Param("startTime") LocalDateTime startTime,
+                                    @Param("endTime") LocalDateTime endTime,
+                                    @Param("id") Long id);
 
     /**
      * Deletes a booking from the repository by its ID.

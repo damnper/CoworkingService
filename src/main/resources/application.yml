@@ -31,3 +31,6 @@ logging:
 springdoc:
   api-docs:
     path: /api-docs
+
+jwt:
+  secret: k3QJ7+lHzH5Ghz1YhK60jxhF5Y6t5YT+FoF3DpvOPB9FEkA1Pn8v24e9R6hgkV1z+SfGtMWvsC9WgB32JcBrZQ==

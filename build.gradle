@@ -17,23 +17,20 @@ repositories {
     mavenCentral()
 }
 
-sourceSets {
-    main {
-        resources {
-            srcDir 'srcmainresources'
-        }
-    }
-}
-
 dependencies {
     // Spring Boot dependencies
+    implementation 'org.springframework.boot:spring-boot-starter:3.2.0'
+    implementation 'org.springframework.boot:spring-boot-configuration-processor:3.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-web:3.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.2.0'
-    implementation 'org.springframework.boot:spring-boot-starter-security:3.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-actuator:3.2.0'
-    implementation 'org.springframework.boot:spring-boot-starter-log4j2:3.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-validation:3.2.0'
     testImplementation 'org.springframework.boot:spring-boot-starter-test:3.2.0'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
 
     // PostgreSQL Driver
         runtimeOnly 'org.postgresql:postgresql:42.7.3'
@@ -47,7 +44,9 @@ dependencies {
     testImplementation 'org.aspectj:aspectjweaver:1.9.8'
 
     // Jackson for JSON processing
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
 
     implementation 'jakarta.annotation:jakarta.annotation-api:3.0.0'
 

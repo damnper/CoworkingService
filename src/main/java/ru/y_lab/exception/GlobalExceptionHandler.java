@@ -1,10 +1,11 @@
 package ru.y_lab.exception;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import ru.y_lab.dto.ErrorResponse;
+
+import static org.springframework.http.HttpStatus.*;
 
 /**
  * Global exception handler for handling various exceptions thrown by the application.
@@ -23,11 +24,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
+                NOT_FOUND.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(errorResponse, NOT_FOUND);
     }
 
     /**
@@ -39,11 +40,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
+                BAD_REQUEST.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, BAD_REQUEST);
     }
 
     /**
@@ -55,11 +56,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BookingConflictException.class)
     public ResponseEntity<ErrorResponse> handleBookingConflictException(BookingConflictException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.CONFLICT.value(),
+                CONFLICT.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+        return new ResponseEntity<>(errorResponse, CONFLICT);
     }
 
     /**
@@ -71,11 +72,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BookingNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleBookingNotFoundException(BookingNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
+                NOT_FOUND.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(errorResponse, NOT_FOUND);
     }
 
     /**
@@ -87,11 +88,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidBookingDataException.class)
     public ResponseEntity<ErrorResponse> handleInvalidBookingDataException(InvalidBookingDataException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
+                BAD_REQUEST.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, BAD_REQUEST);
     }
 
     /**
@@ -103,11 +104,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidBookingTimeException.class)
     public ResponseEntity<ErrorResponse> handleInvalidBookingTimeException(InvalidBookingTimeException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
+                BAD_REQUEST.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, BAD_REQUEST);
     }
 
     /**
@@ -119,11 +120,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceConflictException.class)
     public ResponseEntity<ErrorResponse> handleResourceConflictException(ResourceConflictException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.CONFLICT.value(),
+                CONFLICT.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+        return new ResponseEntity<>(errorResponse, CONFLICT);
     }
 
     /**
@@ -135,11 +136,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
+                NOT_FOUND.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(errorResponse, NOT_FOUND);
     }
 
     /**
@@ -151,11 +152,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DatabaseException.class)
     public ResponseEntity<ErrorResponse> handleDatabaseException(DatabaseException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                INTERNAL_SERVER_ERROR.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(errorResponse, INTERNAL_SERVER_ERROR);
     }
 
     /**
@@ -167,11 +168,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ErrorResponse> handleSecurityException(SecurityException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
+                UNAUTHORIZED.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        return new ResponseEntity<>(errorResponse, UNAUTHORIZED);
     }
 
     /**
@@ -183,11 +184,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticateException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticateException(AuthenticateException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
+                UNAUTHORIZED.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        return new ResponseEntity<>(errorResponse, UNAUTHORIZED);
     }
 
     /**
@@ -199,10 +200,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationException.class)
     public ResponseEntity<ErrorResponse> handleAuthorizationException(AuthorizationException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
+                FORBIDDEN.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        return new ResponseEntity<>(errorResponse, FORBIDDEN);
+    }
+
+    /**
+     * Handles {@link InvalidCredentialsException} and returns an UNAUTHORIZED response.
+     *
+     * @param ex the {@link InvalidCredentialsException} thrown
+     * @return a {@link ResponseEntity} containing the error details and HTTP status UNAUTHORIZED
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                UNAUTHORIZED.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(errorResponse, UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleJwtAuthenticationException(JwtAuthenticationException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                UNAUTHORIZED.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(errorResponse, UNAUTHORIZED);
     }
 }

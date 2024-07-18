@@ -1,6 +1,7 @@
 package ru.y_lab.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,6 @@ import ru.y_lab.enums.ResourceType;
 import ru.y_lab.service.ResourceService;
 import ru.y_lab.swagger.API.ResourceControllerAPI;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -22,9 +22,9 @@ import java.util.List;
  */
 @Tag(name = "Resource API", description = "Operations about resources")
 @RestController
-@RequestMapping("/resources")
+@RequestMapping("/api/v1/resources")
 @RequiredArgsConstructor
-public class ResourceController implements ResourceControllerAPI {
+public class ResourceController {
 
     private final ResourceService resourceService;
 
@@ -37,10 +37,10 @@ public class ResourceController implements ResourceControllerAPI {
      * @return a {@link ResponseEntity} containing the added resource as a {@link ResourceDTO} with HTTP status CREATED
      */
     @PostMapping
-    public ResponseEntity<ResourceDTO> addResource(@RequestBody AddResourceRequestDTO addResourceRequest,
-                                                   @RequestParam ResourceType resourceType,
-                                                   HttpServletRequest httpRequest) {
-        ResourceDTO resourceDTO = resourceService.addResource(addResourceRequest, resourceType, httpRequest);
+    public ResponseEntity<ResourceDTO> addResource(@RequestHeader("Authorization") String token,
+                                                   @RequestBody AddResourceRequestDTO addResourceRequest,
+                                                   @RequestParam ResourceType resourceType) {
+        ResourceDTO resourceDTO = resourceService.addResource(token, addResourceRequest, resourceType);
         return new ResponseEntity<>(resourceDTO, HttpStatus.CREATED);
     }
 

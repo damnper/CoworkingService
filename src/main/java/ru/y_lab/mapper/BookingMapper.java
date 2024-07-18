@@ -23,9 +23,9 @@ public interface BookingMapper {
      * @return the converted BookingDTO
      */
     @Mappings({
-            @Mapping(source = "id", target = "id"),
-            @Mapping(source = "ownerId", target = "ownerId"),
+            @Mapping(source = "userId", target = "ownerId"),
             @Mapping(source = "resourceId", target = "resourceId"),
+            @Mapping(source = "id", target = "bookingId"),
             @Mapping(source = "startTime", target = "startTime"),
             @Mapping(source = "endTime", target = "endTime")
     })
@@ -41,12 +41,12 @@ public interface BookingMapper {
      * @return the converted BookingWithOwnerResourceDTO
      */
     @Mappings({
-            @Mapping(source = "user.resourceId", target = "ownerId"),
-            @Mapping(source = "resource.resourceId", target = "resourceId"),
-            @Mapping(source = "booking.resourceId", target = "bookingId"),
+            @Mapping(source = "user.id", target = "ownerId"),
+            @Mapping(source = "resource.id", target = "resourceId"),
+            @Mapping(source = "booking.id", target = "bookingId"),
             @Mapping(source = "user.username", target = "ownerName"),
-            @Mapping(source = "resource.resourceName", target = "resourceName"),
-            @Mapping(source = "resource.resourceType", target = "resourceType"),
+            @Mapping(source = "resource.name", target = "resourceName"),
+            @Mapping(source = "resource.type", target = "resourceType"),
             @Mapping(target = "date", expression = "java(booking.getStartTime().toLocalDate().toString())"),
             @Mapping(target = "startTime", expression = "java(booking.getStartTime().toLocalTime().toString())"),
             @Mapping(target = "endTime", expression = "java(booking.getEndTime().toLocalTime().toString())")

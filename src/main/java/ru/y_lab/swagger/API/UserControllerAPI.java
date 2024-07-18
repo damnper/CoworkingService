@@ -6,14 +6,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import ru.y_lab.dto.LoginRequestDTO;
-import ru.y_lab.dto.RegisterRequestDTO;
-import ru.y_lab.dto.UpdateUserRequestDTO;
-import ru.y_lab.dto.UserDTO;
+import org.springframework.web.bind.annotation.RequestHeader;
+import ru.y_lab.dto.*;
 import ru.y_lab.swagger.shemas.AccessDeniedResponseSchema;
 import ru.y_lab.swagger.shemas.ForbiddenResponseSchema;
 import ru.y_lab.swagger.shemas.userAPI.UserIllegalArgumentResponseSchema;
@@ -48,7 +44,7 @@ public interface UserControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = AccessDeniedResponseSchema.class)))
     })
-    ResponseEntity<UserDTO> loginUser(@RequestBody LoginRequestDTO request, HttpServletRequest httpRequest);
+    ResponseEntity<TokenResponseDTO> loginUser(@RequestBody LoginRequestDTO request);
 
     @Operation(summary = "Get User By ID",
             description = "Retrieves the profile information of a user based on their ID.",
@@ -60,14 +56,11 @@ public interface UserControllerAPI {
             @ApiResponse(responseCode = "401", description = "Access denied. User is not authorized to perform this action.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = AccessDeniedResponseSchema.class))),
-            @ApiResponse(responseCode = "403", description = "You do not have the necessary permissions to access this resource.",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ForbiddenResponseSchema.class))),
             @ApiResponse(responseCode = "404", description = "User not found. No user exists with the specified ID.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<UserDTO> getUserById(@PathVariable("ownerId") Long userId, HttpServletRequest httpRequest);
+    ResponseEntity<UserDTO> getUserById(@RequestHeader("Authorization") String token);
 
     @Operation(summary = "Get all users",
             description = "Retrieves all users in the system. Only accessible by admin users.",
@@ -79,14 +72,14 @@ public interface UserControllerAPI {
             @ApiResponse(responseCode = "401", description = "Access denied. User is not authorized to perform this action.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = AccessDeniedResponseSchema.class))),
-            @ApiResponse(responseCode = "403", description = "You do not have the necessary permissions to access this resource.",
+            @ApiResponse(responseCode = "403", description = "Access denied. Only admin users can access this resource.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ForbiddenResponseSchema.class))),
             @ApiResponse(responseCode = "404", description = "User not found. No user exists with the specified ID.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<List<UserDTO>> getAllUsers(HttpServletRequest httpRequest);
+    ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("Authorization") String token);
 
     @Operation(summary = "Update user",
             description = "Updates an existing user. Only accessible by the user themselves or an admin.",
@@ -101,16 +94,12 @@ public interface UserControllerAPI {
             @ApiResponse(responseCode = "401", description = "Access denied. User is not authorized to perform this action.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = AccessDeniedResponseSchema.class))),
-            @ApiResponse(responseCode = "403", description = "You do not have the necessary permissions to access this resource.",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ForbiddenResponseSchema.class))),
             @ApiResponse(responseCode = "404", description = "User not found. No user exists with the specified ID.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<UserDTO> updateUser(@PathVariable("ownerId") Long userId,
-                                       @RequestBody UpdateUserRequestDTO updateRequest,
-                                       HttpServletRequest httpRequest);
+    ResponseEntity<UserDTO> updateUser(@RequestHeader("Authorization") String token,
+                                       @RequestBody UpdateUserRequestDTO updateRequest);
 
     @Operation(summary = "Delete user",
             description = "Deletes a user by their ID. Only accessible by the user themselves or an admin.",
@@ -120,12 +109,9 @@ public interface UserControllerAPI {
             @ApiResponse(responseCode = "401", description = "Access denied. User is not authorized to perform this action.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = AccessDeniedResponseSchema.class))),
-            @ApiResponse(responseCode = "403", description = "You do not have the necessary permissions to access this resource.",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ForbiddenResponseSchema.class))),
             @ApiResponse(responseCode = "404", description = "User not found. No user exists with the specified ID.",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = UserNotFoundResponseSchema.class)))
     })
-    ResponseEntity<Void> deleteUser(@PathVariable("ownerId") Long userId, HttpServletRequest httpRequest);
+    ResponseEntity<Void> deleteUser(@RequestHeader("Authorization") String token);
 }
