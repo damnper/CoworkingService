@@ -58,7 +58,8 @@ public interface ResourceControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResourceNotFoundResponseSchema.class)))
     })
-    ResponseEntity<ResourceWithOwnerDTO> getResourceById(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest);
+    ResponseEntity<ResourceWithOwnerDTO> getResourceById(@RequestHeader("Authorization") String token,
+                                                         @PathVariable("resourceId") Long resourceId);
 
     @Operation(summary = "Get all resources",
             description = "Retrieves all resources in the system.",
@@ -77,7 +78,7 @@ public interface ResourceControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResourceNotFoundResponseSchema.class)))
     })
-    ResponseEntity<List<ResourceWithOwnerDTO>> getAllResources(HttpServletRequest httpRequest);
+    ResponseEntity<List<ResourceWithOwnerDTO>> getAllResources(@RequestHeader("Authorization") String token);
 
     @Operation(summary = "Update resource",
             description = "Updates an existing resource.",
@@ -99,10 +100,10 @@ public interface ResourceControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResourceNotFoundResponseSchema.class)))
     })
-    ResponseEntity<ResourceDTO> updateResource(@PathVariable("resourceId") Long resourceId,
-                                                      @RequestBody UpdateResourceRequestDTO request,
-                                                      @RequestParam ResourceType resourceType,
-                                                      HttpServletRequest httpRequest);
+    ResponseEntity<ResourceDTO> updateResource(@RequestHeader("Authorization") String token,
+                                               @PathVariable("resourceId") Long resourceId,
+                                               @RequestBody UpdateResourceRequestDTO request,
+                                               @RequestParam ResourceType resourceType);
 
     @Operation(summary = "Delete resource",
             description = "Deletes a resource by its ID.",
@@ -119,5 +120,6 @@ public interface ResourceControllerAPI {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResourceNotFoundResponseSchema.class)))
     })
-    ResponseEntity<Void> deleteResource(@PathVariable("resourceId") Long resourceId, HttpServletRequest httpRequest);
+    ResponseEntity<Void> deleteResource(@RequestHeader("Authorization") String token,
+                                        @PathVariable("resourceId") Long resourceId);
 }

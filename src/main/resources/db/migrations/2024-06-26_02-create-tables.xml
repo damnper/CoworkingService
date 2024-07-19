@@ -76,6 +76,25 @@
         <addDefaultValue columnName="id"
                          tableName="bookings"
                          defaultValueSequenceNext="bookings_id_seq"/>
+
+        <!-- Add foreign key constraints -->
+        <addForeignKeyConstraint baseTableName="resources"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="users"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_resources_users"/>
+
+        <addForeignKeyConstraint baseTableName="bookings"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="users"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_bookings_users"/>
+
+        <addForeignKeyConstraint baseTableName="bookings"
+                                 baseColumnNames="resource_id"
+                                 referencedTableName="resources"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_bookings_resources"/>
     </changeSet>
 
 </databaseChangeLog>

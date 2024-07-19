@@ -30,6 +30,10 @@ public class Resource {
 
     @Column(name = "type", nullable = false)
     private String type;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private User user;
 }
 
 

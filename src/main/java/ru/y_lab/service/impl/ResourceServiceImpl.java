@@ -1,24 +1,23 @@
 package ru.y_lab.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.y_lab.annotation.AdminOrOwner;
 import ru.y_lab.annotation.Loggable;
-import ru.y_lab.dto.*;
+import ru.y_lab.dto.AddResourceRequestDTO;
+import ru.y_lab.dto.ResourceDTO;
+import ru.y_lab.dto.ResourceWithOwnerDTO;
+import ru.y_lab.dto.UpdateResourceRequestDTO;
 import ru.y_lab.enums.ResourceType;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.ResourceMapper;
 import ru.y_lab.model.Resource;
-import ru.y_lab.model.User;
 import ru.y_lab.repo.ResourceRepo;
-import ru.y_lab.repo.UserRepo;
 import ru.y_lab.service.JWTService;
 import ru.y_lab.service.ResourceService;
 
 import java.util.List;
-
-import static ru.y_lab.enums.RoleType.USER;
 
 /**
  * The ResourceServiceImpl class provides an implementation of the ResourceService interface.
@@ -29,28 +28,19 @@ import static ru.y_lab.enums.RoleType.USER;
 @RequiredArgsConstructor
 public class ResourceServiceImpl implements ResourceService {
 
-    private final AuthenticationUtil authUtil;
     private final ResourceMapper resourceMapper;
     private final ResourceRepo resourceRepo;
-    private final UserRepo userRepo;
     private final JWTService jwsService;
 
     /**
      * Adds a new resource to the system.
      *
      * @param request the request containing resource details
-     * @param httpRequest the HTTP request to get the session for authentication
      * @return the added resource as a ResourceDTO
      */
     @Override
     public ResourceDTO addResource(String token, AddResourceRequestDTO request, ResourceType resourceType) {
-        Long userId = jwsService.extractUserId(token);
-
-        Resource resource = Resource.builder()
-                .userId(userId)
-                .name(request.resourceName())
-                .type(resourceType.name())
-                .build();
+        Resource resource = createResource(request, resourceType, token);
         Resource savedResource = resourceRepo.save(resource);
         return resourceMapper.toDTO(savedResource);
     }
@@ -59,41 +49,28 @@ public class ResourceServiceImpl implements ResourceService {
      * Retrieves a resource by its ID.
      *
      * @param resourceId the ID of the resource
-     * @param httpRequest the HTTP request to get the session for authentication
      * @return the resource with owner details as a ResourceWithOwnerDTO
      * @throws ResourceNotFoundException if the resource is not found
      * @throws UserNotFoundException if the user who owns the resource is not found
      */
     @Override
-    public ResourceWithOwnerDTO getResourceById(Long resourceId, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
-        Resource resource = resourceRepo.findById(resourceId)
+    public ResourceWithOwnerDTO getResourceById(Long resourceId) {
+        return resourceRepo.findResourceWithOwnerById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The requested resource could not be found. Please check the ID and try again."));
-        User user = userRepo.findById(resource.getUserId())
-                .orElseThrow(() -> new UserNotFoundException("The owner of this resource could not be found. Please try again later."));
-        return resourceMapper.toResourceWithOwnerDTO(resource, user);
     }
 
     /**
      * Retrieves all resources in the system.
      *
-     * @param httpRequest the HTTP request to get the session for authentication
      * @return a list of all resources with their owner details
      * @throws ResourceNotFoundException if no resources are found
      */
     @Override
-    public List<ResourceWithOwnerDTO> getAllResources(HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
-        List<Resource> resources = resourceRepo.findAllResources();
-        if (resources.isEmpty()) throw new ResourceNotFoundException("No resources found in the system.");
-
-        return resources.stream()
-                .map(resource -> {
-                    User user = userRepo.findById(resource.getUserId())
-                            .orElseThrow(() -> new UserNotFoundException("The owner of one or more resources could not be found. Please try again later."));
-                    return resourceMapper.toResourceWithOwnerDTO(resource, user);
-                })
-                .toList();
+    public List<ResourceWithOwnerDTO> getAllResources() {
+        List<ResourceWithOwnerDTO> resources =  resourceRepo.findAllResourcesWithOwners();
+        if (resources.isEmpty())
+            throw new ResourceNotFoundException("No resources found in the system.");
+        return resources;
     }
 
     /**
@@ -101,21 +78,21 @@ public class ResourceServiceImpl implements ResourceService {
      *
      * @param resourceId the ID of the resource to be updated
      * @param request the update request containing updated resource details
-     * @param httpRequest the HTTP request to get the session for authentication
      * @return the updated resource as a ResourceDTO
      * @throws ResourceNotFoundException if the resource is not found
      * @throws SecurityException if the user is not authorized to update the resource
      */
     @Override
-    public ResourceDTO updateResource(Long resourceId, UpdateResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest) {
+    @AdminOrOwner
+    public ResourceDTO updateResource(String token, Long resourceId, UpdateResourceRequestDTO request, ResourceType resourceType) {
 
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         Resource resource = resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to update could not be found. Please check the ID and try again."));
-        authUtil.authorize(currentUser, resource.getUserId());
 
-        Resource updatedResource = resourceRepo.updateResource(request.resourceName(), request.resourceType(), resource.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to update could not be found. Please check the ID and try again."));
+        resource.setName(request.resourceName());
+        resource.setType(resourceType.name());
+
+        Resource updatedResource = resourceRepo.save(resource);
         return resourceMapper.toDTO(updatedResource);
     }
 
@@ -123,17 +100,23 @@ public class ResourceServiceImpl implements ResourceService {
      * Deletes a resource by its ID.
      *
      * @param resourceId the ID of the resource to be deleted
-     * @param httpRequest the HTTP request to get the session for authentication
      * @throws ResourceNotFoundException if the resource is not found
      * @throws SecurityException if the user is not authorized to delete the resource
      */
     @Override
-    public void deleteResource(Long resourceId, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-
-        Resource resource = resourceRepo.findById(resourceId)
+    @AdminOrOwner
+    public void deleteResource(String token, Long resourceId) {
+        resourceRepo.findById(resourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("The resource you are trying to delete could not be found. Please check the ID and try again."));
-        authUtil.authorize(currentUser, resource.getUserId());
-        resourceRepo.deleteResource(resourceId);
+        resourceRepo.deleteById(resourceId);
+    }
+
+    private Resource createResource(AddResourceRequestDTO request, ResourceType resourceType, String token) {
+        Long userId = jwsService.extractUserId(token);
+        return Resource.builder()
+                .userId(userId)
+                .name(request.resourceName())
+                .type(resourceType.name())
+                .build();
     }
 }

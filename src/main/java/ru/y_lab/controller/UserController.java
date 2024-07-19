@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.y_lab.annotation.AdminOnly;
 import ru.y_lab.dto.*;
 import ru.y_lab.service.UserService;
 import ru.y_lab.swagger.API.UserControllerAPI;
@@ -57,6 +56,7 @@ public class UserController implements UserControllerAPI {
     /**
      * Retrieves a user by their ID.
      *
+     * @param token the authentication token of the user making the request
      * @return a {@link ResponseEntity} containing the user as a {@link UserDTO} with HTTP status OK
      */
     @Override
@@ -69,10 +69,10 @@ public class UserController implements UserControllerAPI {
     /**
      * Retrieves all users in the system. Only accessible by admin users.
      *
+     * @param token the authentication token of the admin user making the request
      * @return a {@link ResponseEntity} containing a list of all users as {@link UserDTO} with HTTP status OK
      */
     @Override
-    @AdminOnly
     @GetMapping("/all")
     public ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("Authorization") String token) {
         List<UserDTO> users = userService.getAllUsers(token);
@@ -82,6 +82,7 @@ public class UserController implements UserControllerAPI {
     /**
      * Updates an existing user. Only accessible by the user themselves or an admin.
      *
+     * @param token the authentication token of the user making the request
      * @param updateRequest the update request containing updated user details
      * @return a {@link ResponseEntity} containing the updated user as a {@link UserDTO} with HTTP status OK
      */
@@ -96,6 +97,7 @@ public class UserController implements UserControllerAPI {
     /**
      * Deletes a user by their ID.
      *
+     * @param token the authentication token of the user making the request
      * @return a {@link ResponseEntity} with HTTP status NO_CONTENT
      */
     @Override

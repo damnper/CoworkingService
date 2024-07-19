@@ -35,6 +35,14 @@ public class Booking {
 
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private User user;
+
+    @ManyToOne
+    @JoinColumn(name = "resource_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private Resource resource;
 }
 
 
