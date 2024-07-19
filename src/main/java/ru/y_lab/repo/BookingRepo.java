@@ -1,14 +1,12 @@
 package ru.y_lab.repo;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.dto.BookingWithOwnerResourceDTO;
 import ru.y_lab.model.Booking;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,16 +19,122 @@ import java.util.Optional;
 public interface BookingRepo extends JpaRepository<Booking, Long> {
 
     /**
-     * Retrieves bookings by user ID.
+     * Retrieves a booking along with its owner and resource details by booking ID.
      *
-     * @param userId the ID of the user
-     * @return a list of bookings for the specified user
+     * @param bookingId the ID of the booking
+     * @return an optional containing the booking with owner and resource details
      */
     @Query(value = """
-            SELECT * FROM coworking_service.bookings
-            WHERE user_id = :userId
-            """, nativeQuery = true)
-    List<Booking> findByUserId(@Param("userId") Long userId);
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   b.id as bookingId,
+                   u.username as ownerName,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   TO_CHAR(b.start_time, 'YYYY-MM-DD') as date,
+                   TO_CHAR(b.start_time, 'HH24:MI') as startTime,
+                   TO_CHAR(b.end_time, 'HH24:MI') as endTime
+            FROM coworking_service.bookings b
+            JOIN coworking_service.resources r
+                ON b.resource_id = r.id
+            JOIN coworking_service.users u
+                ON b.user_id = u.id
+            WHERE b.id = :bookingId""", nativeQuery = true)
+    Optional<BookingWithOwnerResourceDTO> findBookingWithOwnerResourceById(@Param("bookingId") Long bookingId);
+
+    /**
+     * Retrieves bookings along with their owner and resource details by user ID.
+     *
+     * @param userId the ID of the user
+     * @return a list of bookings with owner and resource details for the specified user
+     */
+    @Query(value = """
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   b.id as bookingId,
+                   u.username as ownerName,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   TO_CHAR(b.start_time, 'YYYY-MM-DD') as date,
+                   TO_CHAR(b.start_time, 'HH24:MI') as startTime,
+                   TO_CHAR(b.end_time, 'HH24:MI') as endTime
+            FROM coworking_service.bookings b
+            JOIN coworking_service.resources r
+                ON b.resource_id = r.id
+            JOIN coworking_service.users u
+                ON b.user_id = u.id
+            WHERE b.id = :userId""", nativeQuery = true)
+    List<BookingWithOwnerResourceDTO> findBookingWithOwnerResourceByUserId(@Param("userId") Long userId);
+
+    /**
+     * Retrieves bookings along with their owner and resource details by resource ID.
+     *
+     * @param resourceId the ID of the resource
+     * @return a list of bookings with owner and resource details for the specified resource
+     */
+    @Query(value = """
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   b.id as bookingId,
+                   u.username as ownerName,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   TO_CHAR(b.start_time, 'YYYY-MM-DD') as date,
+                   TO_CHAR(b.start_time, 'HH24:MI') as startTime,
+                   TO_CHAR(b.end_time, 'HH24:MI') as endTime
+            FROM coworking_service.bookings b
+            JOIN coworking_service.resources r
+                ON b.resource_id = r.id
+            JOIN coworking_service.users u
+                ON b.user_id = u.id
+            WHERE b.id = :resourceId""", nativeQuery = true)
+    List<BookingWithOwnerResourceDTO> findBookingWithOwnerResourceByResourceId(@Param("resourceId") Long resourceId);
+
+    /**
+     * Retrieves all bookings along with their owner and resource details.
+     *
+     * @return a list of all bookings with owner and resource details
+     */
+    @Query(value = """
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   b.id as bookingId,
+                   u.username as ownerName,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   TO_CHAR(b.start_time, 'YYYY-MM-DD') as date,
+                   TO_CHAR(b.start_time, 'HH24:MI') as startTime,
+                   TO_CHAR(b.end_time, 'HH24:MI') as endTime
+            FROM coworking_service.bookings b
+            JOIN coworking_service.resources r
+                ON b.resource_id = r.id
+            JOIN coworking_service.users u
+                ON b.user_id = u.id""", nativeQuery = true)
+    List<BookingWithOwnerResourceDTO> findAllBookingWithOwnerResource();
+
+    /**
+     * Retrieves bookings along with their owner and resource details by date.
+     *
+     * @param date the date of the bookings (in 'YYYY-MM-DD' format)
+     * @return a list of bookings with owner and resource details for the specified date
+     */
+    @Query(value = """
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   b.id as bookingId,
+                   u.username as ownerName,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   TO_CHAR(b.start_time, 'YYYY-MM-DD') as date,
+                   TO_CHAR(b.start_time, 'HH24:MI') as startTime,
+                   TO_CHAR(b.end_time, 'HH24:MI') as endTime
+            FROM coworking_service.bookings b
+            JOIN coworking_service.resources r
+                ON b.resource_id = r.id
+            JOIN coworking_service.users u
+                ON b.user_id = u.id
+            WHERE TO_CHAR(b.start_time, 'YYYY-MM-DD') = :date""", nativeQuery = true)
+    List<BookingWithOwnerResourceDTO> findBookingWithOwnerResourceByDate(@Param("date") String date);
 
     /**
      * Retrieves bookings by resource ID.
@@ -43,51 +147,4 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
             WHERE resource_id = :resourceId
             """, nativeQuery = true)
     List<Booking> findByResourceId(@Param("resourceId") Long resourceId);
-
-    /**
-     * Retrieves bookings by date.
-     *
-     * @param date the date of the booking
-     * @return a list of bookings for the specified date
-     */
-    @Query(value = """
-            SELECT * FROM coworking_service.bookings
-            WHERE start_time::date = :date
-            """, nativeQuery = true)
-    List<Booking> findByDate(@Param("date") LocalDate date);
-
-    /**
-     * Retrieves all bookings from the repository.
-     *
-     * @return a list of all bookings
-     */
-    @Query(value = "SELECT * FROM coworking_service.bookings", nativeQuery = true)
-    List<Booking> findAllBookings();
-
-    /**
-     * Updates an existing booking in the repository.
-     *
-     * @param id the ID of the booking to update
-     * @param startTime the new start time of the booking
-     * @param endTime the new end time of the booking
-     * @return optional Booking
-     */
-    @Modifying
-    @Query(value = """
-            UPDATE coworking_service.bookings
-            SET start_time = :startTime, end_time = :endTime
-            WHERE id = :id
-            """, nativeQuery = true)
-    Optional<Booking> updateBooking(@Param("startTime") LocalDateTime startTime,
-                                    @Param("endTime") LocalDateTime endTime,
-                                    @Param("id") Long id);
-
-    /**
-     * Deletes a booking from the repository by its ID.
-     *
-     * @param id the ID of the booking to be deleted
-     */
-    @Modifying
-    @Query(value = "DELETE FROM coworking_service.bookings WHERE id = :id", nativeQuery = true)
-    void deleteBooking(@Param("id") Long id);
 }

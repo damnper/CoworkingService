@@ -1,12 +1,10 @@
 package ru.y_lab.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.support.BeanDefinitionDsl;
 import org.springframework.stereotype.Service;
+import ru.y_lab.annotation.AdminOnly;
 import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.*;
-import ru.y_lab.enums.RoleType;
-import ru.y_lab.exception.AuthorizationException;
 import ru.y_lab.exception.InvalidCredentialsException;
 import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.UserMapper;
@@ -16,8 +14,6 @@ import ru.y_lab.service.JWTService;
 import ru.y_lab.service.UserService;
 
 import java.util.List;
-
-import static ru.y_lab.enums.RoleType.ADMIN;
 
 /**
  * The UserServiceImpl class provides an implementation of the UserService interface.
@@ -34,12 +30,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDTO registerUser(RegisterRequestDTO request) {
-        User user = User.builder()
-                .username(request.username())
-                .password(request.password())
-                .role("USER")
-                .build();
-
+        User user = createUser(request);
         User registeredUser = userRepo.save(user);
         return userMapper.toDTO(registeredUser);
     }
@@ -49,14 +40,11 @@ public class UserServiceImpl implements UserService {
         User user = userRepo.findByUsername(request.username())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
 
-        if (!user.getPassword().equals(request.password())) {
+        if (!user.getPassword().equals(request.password()))
             throw new InvalidCredentialsException("Invalid username or password");
-        }
 
         String token = jwtService.generateToken(user.getUsername(), user.getId(), user.getRole());
-
         return new TokenResponseDTO(token);
-
     }
 
     @Override
@@ -67,7 +55,8 @@ public class UserServiceImpl implements UserService {
         return userMapper.toDTO(user);
     }
 
-//    @Override
+    @Override
+    @AdminOnly
     public List<UserDTO> getAllUsers(String token) {
         List<User> users = userRepo.findAll();
         if (users.isEmpty()) throw new UserNotFoundException("No users found in the system.");
@@ -99,5 +88,13 @@ public class UserServiceImpl implements UserService {
         userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found. No user exists with the specified ID."));
         userRepo.deleteById(userId);
+    }
+
+    private User createUser(RegisterRequestDTO request) {
+        return User.builder()
+                .username(request.username())
+                .password(request.password())
+                .role("USER")
+                .build();
     }
 }

@@ -1,35 +1,34 @@
 package ru.y_lab.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.y_lab.annotation.AdminOnly;
+import ru.y_lab.annotation.AdminOrOwner;
 import ru.y_lab.annotation.Loggable;
 import ru.y_lab.dto.*;
 import ru.y_lab.exception.BookingConflictException;
 import ru.y_lab.exception.BookingNotFoundException;
 import ru.y_lab.exception.ResourceNotFoundException;
-import ru.y_lab.exception.UserNotFoundException;
 import ru.y_lab.mapper.BookingMapper;
 import ru.y_lab.mapper.CustomDateTimeMapper;
 import ru.y_lab.model.Booking;
 import ru.y_lab.model.Resource;
-import ru.y_lab.model.User;
 import ru.y_lab.repo.BookingRepo;
 import ru.y_lab.repo.ResourceRepo;
-import ru.y_lab.repo.UserRepo;
 import ru.y_lab.service.BookingService;
+import ru.y_lab.service.JWTService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import static ru.y_lab.enums.RoleType.ADMIN;
-import static ru.y_lab.enums.RoleType.USER;
 import static ru.y_lab.mapper.CustomDateTimeMapper.formatLocalTime;
-import static ru.y_lab.util.ValidationUtil.*;
+import static ru.y_lab.util.ValidationUtil.validateDateTime;
+import static ru.y_lab.util.ValidationUtil.validateUpdateBookingRequest;
 
 /**
  * The BookingServiceImpl class provides an implementation of the BookingService interface.
@@ -40,38 +39,26 @@ import static ru.y_lab.util.ValidationUtil.*;
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
 
-    private final AuthenticationUtil authUtil;
     private final BookingMapper bookingMapper;
     private final CustomDateTimeMapper dateTimeMapper;
-    private final UserRepo userRepo;
     private final ResourceRepo resourceRepo;
     private final BookingRepo bookingRepo;
+    private final JWTService jwtService;
 
     /**
      * Adds a new booking to the system.
      *
+     * @param token      the authentication token of the user making the request
      * @param requestDTO the request containing booking details
-     * @param httpRequest the HTTP request to get the session
      * @return the added booking as a BookingDTO
      */
     @Override
-    public BookingDTO addBooking(AddBookingRequestDTO requestDTO, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Long resourceId = requestDTO.resourceId();
-        Resource resource = resourceRepo.findById(resourceId)
+    public BookingDTO addBooking(String token, AddBookingRequestDTO requestDTO) {
+        Long userId = jwtService.extractUserId(token);
+        Resource resource = resourceRepo.findById(requestDTO.resourceId())
                 .orElseThrow(() -> new ResourceNotFoundException("The requested resource was not found."));
 
-        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(requestDTO.startTime());
-        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(requestDTO.endTime());
-
-        validateDateTime(startDateTime, endDateTime);
-        Booking booking = Booking.builder()
-                .userId(currentUser.id())
-                .resourceId(resource.getId())
-                .startTime(startDateTime)
-                .endTime(endDateTime)
-                .build();
-        checkBookingConflicts(booking);
+        Booking booking = createBooking(userId, resource, requestDTO);
         Booking savedBooking = bookingRepo.save(booking);
         return bookingMapper.toDTO(savedBooking);
     }
@@ -79,123 +66,103 @@ public class BookingServiceImpl implements BookingService {
     /**
      * Retrieves a booking by its ID.
      *
+     * @param token     the authentication token of the user making the request
      * @param bookingId the ID of the booking
-     * @param httpRequest the HTTP request to get the session
      * @return the booking with owner and resource details as a BookingWithOwnerResourceDTO
      */
     @Override
-    public BookingWithOwnerResourceDTO getBookingById(Long bookingId, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
-
-        Booking booking = bookingRepo.findById(bookingId)
+    @AdminOnly
+    public BookingWithOwnerResourceDTO getBookingById(String token, Long bookingId) {
+        return bookingRepo.findBookingWithOwnerResourceById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The requested booking was not found."));
-        Resource resource = resourceRepo.findById(booking.getResourceId())
-                .orElseThrow(() -> new ResourceNotFoundException("The resource for the booking was not found."));
-        User user = userRepo.findById(booking.getUserId())
-                .orElseThrow(() -> new UserNotFoundException("The user who made the booking was not found."));
-
-        return bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
     }
 
     /**
      * Retrieves all bookings made by a specific user.
      *
-     * @param userId the ID of the user
-     * @param httpRequest the HTTP request to get the session
+     * @param token the authentication token of the user making the request
      * @return a list of bookings with owner and resource details for the specified user
      */
     @Override
-    public List<BookingWithOwnerResourceDTO> getUserBookings(Long userId, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        authUtil.authorize(currentUser, userId);
-
-        List<Booking> allBookings = bookingRepo.findByUserId(userId);
-        if (allBookings.isEmpty())
-            throw new BookingNotFoundException("No bookings were found for the user.");
-
-        return convertListBookingsToDTO(allBookings);
+    public List<BookingWithOwnerResourceDTO> getUserBookings(String token) {
+        Long userId = jwtService.extractUserId(token);
+        List<BookingWithOwnerResourceDTO> bookings = bookingRepo.findBookingWithOwnerResourceByUserId(userId);
+        if (bookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found in the system.");
+        return bookings;
     }
 
     /**
      * Retrieves all bookings in the system. Only accessible by admin users.
      *
-     * @param httpRequest the HTTP request to get the session
+     * @param token the authentication token of the admin user making the request
      * @return a list of all bookings with owner and resource details
      */
     @Override
-    public List<BookingWithOwnerResourceDTO> getAllBookings(HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, ADMIN.name());
-        List<Booking> allBookings = bookingRepo.findAllBookings();
-        if(allBookings.isEmpty())
+    @AdminOnly
+    public List<BookingWithOwnerResourceDTO> getAllBookings(String token) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingRepo.findAllBookingWithOwnerResource();
+        if (bookings.isEmpty())
             throw new BookingNotFoundException("No bookings were found in the system.");
-
-        return convertListBookingsToDTO(allBookings);
+        return bookings;
     }
 
     /**
      * Retrieves bookings by a specific date.
      *
-     * @param date the date of the bookings
-     * @param httpRequest the HTTP request to get the session
+     * @param token the authentication token of the user making the request
+     * @param date  the date of the bookings in milliseconds since epoch
      * @return a list of bookings with owner and resource details for the specified date
      */
     @Override
-    public List<BookingWithOwnerResourceDTO> getBookingsByDate(Long date, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
-
+    public List<BookingWithOwnerResourceDTO> getBookingsByDate(String token, Long date) {
         LocalDate localDate = dateTimeMapper.toLocalDate(date);
-        List<Booking> allBookingsByDate = bookingRepo.findByDate(localDate);
-        if (allBookingsByDate.isEmpty())
-            throw new BookingNotFoundException("No bookings were found for the specified date.");
-
-        return convertListBookingsToDTO(allBookingsByDate);
+        String dateString = localDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        List<BookingWithOwnerResourceDTO> bookings = bookingRepo.findBookingWithOwnerResourceByDate(dateString);
+        if (bookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found in the system.");
+        return bookings;
     }
 
     /**
      * Retrieves bookings made by a specific user ID. Only accessible by admin users.
      *
      * @param userId the ID of the user
-     * @param httpRequest the HTTP request to get the session
      * @return a list of bookings with owner and resource details for the specified user
      */
     @Override
-    public List<BookingWithOwnerResourceDTO> getBookingsByUserId(Long userId, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, ADMIN.name());
-
-        List<Booking> allBookingsByUserId = bookingRepo.findByUserId(userId);
-        if (allBookingsByUserId.isEmpty())
-            throw new BookingNotFoundException("The user who made the booking was not found or no bookings were found for the specified user.");
-
-        return convertListBookingsToDTO(allBookingsByUserId);
+    @AdminOnly
+    public List<BookingWithOwnerResourceDTO> getBookingsByUserId(Long userId) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingRepo.findBookingWithOwnerResourceByUserId(userId);
+        if (bookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found in the system.");
+        return bookings;
     }
 
     /**
      * Retrieves bookings for a specific resource ID.
      *
+     * @param token      the authentication token of the user making the request
      * @param resourceId the ID of the resource
-     * @param httpRequest the HTTP request to get the session
      * @return a list of bookings with owner and resource details for the specified resource
      */
     @Override
-    public List<BookingWithOwnerResourceDTO> getBookingsByResourceId(Long resourceId, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
-
-        List<Booking> allBookingsByUserId = bookingRepo.findByResourceId(resourceId);
-        if(allBookingsByUserId.isEmpty()) throw new BookingNotFoundException("The resource for the booking was not found or no bookings were found for the specified resource.");
-
-        return convertListBookingsToDTO(allBookingsByUserId);
+    public List<BookingWithOwnerResourceDTO> getBookingsByResourceId(String token, Long resourceId) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingRepo.findBookingWithOwnerResourceByResourceId(resourceId);
+        if (bookings.isEmpty())
+            throw new BookingNotFoundException("No bookings were found in the system.");
+        return bookings;
     }
 
     /**
      * Retrieves available slots for a specific resource and date.
      *
+     * @param token   the authentication token of the user making the request
      * @param request the request containing resource ID and date
-     * @param httpRequest the HTTP request to get the session
      * @return a list of available slots for the specified resource and date
      */
     @Override
-    public List<AvailableSlotDTO> getAvailableSlots(AvailableSlotsRequestDTO request, HttpServletRequest httpRequest) {
-        authUtil.authenticate(httpRequest, USER.name());
+    public List<AvailableSlotDTO> getAvailableSlots(String token, AvailableSlotsRequestDTO request) {
 
         Long resourceId = request.resourceId();
         LocalDate date = dateTimeMapper.toLocalDate(request.date());
@@ -211,47 +178,63 @@ public class BookingServiceImpl implements BookingService {
     /**
      * Updates an existing booking.
      *
+     * @param token     the authentication token of the user making the request
      * @param bookingId the ID of the booking to be updated
-     * @param request the update request containing updated booking details
-     * @param httpRequest the HTTP request to get the session
+     * @param request   the update request containing updated booking details
      * @return the updated booking as a BookingDTO
      */
     @Override
-    public BookingDTO updateBooking(Long bookingId, UpdateBookingRequestDTO request, HttpServletRequest httpRequest) {
+    @AdminOrOwner
+    public BookingDTO updateBooking(String token, Long bookingId, UpdateBookingRequestDTO request) {
         validateUpdateBookingRequest(request);
 
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
         Booking existingBooking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The booking to be updated was not found."));
-        authUtil.authorize(currentUser, existingBooking.getUserId());
 
-        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(request.startTime());
-        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(request.endTime());
-        validateDateTime(startDateTime, endDateTime);
-
-        existingBooking.setStartTime(startDateTime);
-        existingBooking.setEndTime(endDateTime);
+        processBookingTimes(request, existingBooking);
         checkBookingConflicts(existingBooking);
 
-        Booking updatedBooking = bookingRepo.updateBooking(startDateTime, endDateTime, existingBooking.getId())
-                .orElseThrow(() -> new BookingNotFoundException("The booking to be updated was not found."));
+        Booking updatedBooking = bookingRepo.save(existingBooking);
         return bookingMapper.toDTO(updatedBooking);
     }
+
 
     /**
      * Deletes a booking by its ID.
      *
+     * @param token     the authentication token of the user making the request
      * @param bookingId the ID of the booking to be deleted
-     * @param httpRequest the HTTP request to get the session
      */
     @Override
-    public void deleteBooking(Long bookingId, HttpServletRequest httpRequest) {
-        UserDTO currentUser = authUtil.authenticate(httpRequest, USER.name());
-        Booking booking = bookingRepo.findById(bookingId)
+    @AdminOrOwner
+    public void deleteBooking(String token, Long bookingId) {
+        bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException("The booking to be deleted was not found."));
-        authUtil.authorize(currentUser, booking.getUserId());
 
-        bookingRepo.deleteBooking(bookingId);
+        bookingRepo.deleteById(bookingId);
+    }
+
+    /**
+     * Creates a new booking.
+     *
+     * @param userId    the ID of the user making the booking
+     * @param resource  the resource being booked
+     * @param requestDTO the request containing booking details
+     * @return the created booking
+     */
+    private Booking createBooking(Long userId, Resource resource, AddBookingRequestDTO requestDTO) {
+        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(requestDTO.startTime());
+        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(requestDTO.endTime());
+        validateDateTime(startDateTime, endDateTime);
+
+        Booking booking = Booking.builder()
+                .userId(userId)
+                .resourceId(resource.getId())
+                .startTime(startDateTime)
+                .endTime(endDateTime)
+                .build();
+        checkBookingConflicts(booking);
+        return booking;
     }
 
     /**
@@ -324,23 +307,17 @@ public class BookingServiceImpl implements BookingService {
     }
 
     /**
-     * Converts a list of Booking objects to a list of BookingWithOwnerResourceDTO objects.
+     * Processes the booking times from the request and updates the existing booking.
      *
-     * @param bookings the list of bookings to convert
-     * @return a list of BookingWithOwnerResourceDTO objects
-     * @throws UserNotFoundException if a user for a booking is not found
-     * @throws ResourceNotFoundException if a resource for a booking is not found
+     * @param request the update request containing updated booking details
+     * @param existingBooking the existing booking to be updated
      */
-    private List<BookingWithOwnerResourceDTO> convertListBookingsToDTO(List<Booking> bookings) throws UserNotFoundException, ResourceNotFoundException {
-        List<BookingWithOwnerResourceDTO> bookingWithOwnerResourceDTOList = new ArrayList<>();
-        bookings.forEach(booking -> {
-            User user = userRepo.findById(booking.getUserId())
-                    .orElseThrow(() -> new UserNotFoundException("User not found by ID: " + booking.getUserId()));
-            Resource resource = resourceRepo.findById(booking.getResourceId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Resource not found by ID: " + booking.getResourceId()));
-            BookingWithOwnerResourceDTO bookingWithOwnerResourceDTO = bookingMapper.toBookingWithOwnerResourceDTO(booking, resource, user);
-            bookingWithOwnerResourceDTOList.add(bookingWithOwnerResourceDTO);
-        });
-        return bookingWithOwnerResourceDTOList;
+    private void processBookingTimes(UpdateBookingRequestDTO request, Booking existingBooking) {
+        LocalDateTime startDateTime = dateTimeMapper.toLocalDateTime(request.startTime());
+        LocalDateTime endDateTime = dateTimeMapper.toLocalDateTime(request.endTime());
+        validateDateTime(startDateTime, endDateTime);
+
+        existingBooking.setStartTime(startDateTime);
+        existingBooking.setEndTime(endDateTime);
     }
 }

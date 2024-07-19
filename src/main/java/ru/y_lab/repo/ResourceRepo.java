@@ -1,10 +1,10 @@
 package ru.y_lab.repo;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import ru.y_lab.dto.ResourceWithOwnerDTO;
 import ru.y_lab.model.Resource;
 
 import java.util.List;
@@ -19,43 +19,36 @@ import java.util.Optional;
 public interface ResourceRepo extends JpaRepository<Resource, Long> {
 
     /**
-     * Retrieves all resources from the repository.
+     * Finds a resource along with its owner by the resource's ID.
      *
-     * @return a list of all resources
+     * @param resourceId the ID of the resource
+     * @return an {@link Optional} containing a {@link ResourceWithOwnerDTO} if found, otherwise empty
      */
-    @Query(value = "SELECT * FROM coworking_service.resources", nativeQuery = true)
-    List<Resource> findAllResources();
+    @Query(value = """
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   u.username as ownerName
+            FROM coworking_service.resources r
+            JOIN coworking_service.users u
+                ON r.user_id = u.id
+            WHERE r.id = :resourceId""", nativeQuery = true)
+    Optional<ResourceWithOwnerDTO> findResourceWithOwnerById(@Param("resourceId") Long resourceId);
 
     /**
-     * Updates an existing resource in the repository.
+     * Retrieves all resources along with their owners.
      *
-     * @param id the ID of the resource to update
-     * @param userId the new user ID associated with the resource
-     * @param name the new resourceName of the resource
-     * @param type the new resourceType of the resource
-     * @return the number of rows affected
+     * @return a {@link List} of {@link ResourceWithOwnerDTO} representing all resources and their owners
      */
-    @Modifying
     @Query(value = """
-                    UPDATE coworking_service.resources
-                    SET name = :name, type = :type
-                    WHERE id = :id
-                    """, nativeQuery = true)
-    Optional<Resource> updateResource(
-                                      @Param("name") String name,
-                                      @Param("type") String type,
-                                      @Param("id") Long id);
-
-    /**
-     * Deletes a resource from the repository by its ID.
-     *
-     * @param id the ID of the resource to be deleted
-     * @return the number of rows affected
-     */
-    @Modifying
-    @Query(value = """
-                    DELETE FROM coworking_service.resources
-                    WHERE id = :id
-                    """, nativeQuery = true)
-    void deleteResource(@Param("id") Long id);
+            SELECT u.id as ownerId,
+                   r.id as resourceId,
+                   r.name as resourceName,
+                   r.type as resourceType,
+                   u.username as ownerName
+            FROM coworking_service.resources r
+            JOIN coworking_service.users u
+                ON r.user_id = u.id""", nativeQuery = true)
+    List<ResourceWithOwnerDTO> findAllResourcesWithOwners();
 }

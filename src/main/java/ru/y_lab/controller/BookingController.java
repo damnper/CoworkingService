@@ -2,13 +2,13 @@ package ru.y_lab.controller;
 
 
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.y_lab.dto.*;
 import ru.y_lab.service.BookingService;
+import ru.y_lab.swagger.API.BookingControllerAPI;
 
 import java.util.List;
 
@@ -20,138 +20,156 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/bookings")
 @RequiredArgsConstructor
-public class BookingController {
+public class BookingController implements BookingControllerAPI {
 
     private final BookingService bookingService;
 
     /**
      * Adds a new booking.
      *
+     * @param token the authentication token of the user making the request
      * @param request the booking request details
-     * @param httpRequest the HTTP request
      * @return the created booking as a {@link BookingDTO}
      */
+    @Override
     @PostMapping
-    public ResponseEntity<BookingDTO> addBooking(@RequestBody AddBookingRequestDTO request, HttpServletRequest httpRequest) {
+    public ResponseEntity<BookingDTO> addBooking(@RequestHeader("Authorization") String token,
+                                                 @RequestBody AddBookingRequestDTO request) {
         BookingDTO bookingDTO;
-        bookingDTO = bookingService.addBooking(request, httpRequest);
+        bookingDTO = bookingService.addBooking(token, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(bookingDTO);
     }
 
     /**
      * Retrieves a booking by its ID.
      *
+     * @param token the authentication token of the user making the request
      * @param bookingId the ID of the booking
-     * @param httpRequest the HTTP request
      * @return the booking details as a {@link BookingWithOwnerResourceDTO}
      */
+    @Override
     @GetMapping("/{bookingId}")
-    public ResponseEntity<BookingWithOwnerResourceDTO> getBookingById(@PathVariable Long bookingId, HttpServletRequest httpRequest) {
-        BookingWithOwnerResourceDTO booking = bookingService.getBookingById(bookingId, httpRequest);
+    public ResponseEntity<BookingWithOwnerResourceDTO> getBookingById(@RequestHeader("Authorization") String token,
+                                                                      @PathVariable Long bookingId) {
+        BookingWithOwnerResourceDTO booking = bookingService.getBookingById(token, bookingId);
         return ResponseEntity.ok(booking);
     }
 
     /**
      * Retrieves bookings for a specific user.
      *
-     * @param userId the ID of the user
-     * @param httpRequest the HTTP request
+     * @param token the authentication token of the user making the request
      * @return a list of bookings for the user as {@link BookingWithOwnerResourceDTO}
      */
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getUserBookings(@PathVariable Long userId, HttpServletRequest httpRequest) {
-        List<BookingWithOwnerResourceDTO> bookings = bookingService.getUserBookings(userId, httpRequest);
+    @Override
+    @GetMapping("/user")
+    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getUserBookings(@RequestHeader("Authorization") String token) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingService.getUserBookings(token);
         return ResponseEntity.ok(bookings);
     }
 
     /**
      * Retrieves all bookings.
      *
-     * @param httpRequest the HTTP request
+     * @param token the authentication token of the admin user making the request
      * @return a list of all bookings as {@link BookingWithOwnerResourceDTO}
      */
+    @Override
     @GetMapping
-    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getAllBookings(HttpServletRequest httpRequest) {
-        List<BookingWithOwnerResourceDTO> bookings = bookingService.getAllBookings(httpRequest);
+    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getAllBookings(@RequestHeader("Authorization") String token) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingService.getAllBookings(token);
         return ResponseEntity.ok(bookings);
     }
 
     /**
      * Retrieves bookings by a specific date.
      *
-     * @param date the date of the bookings
-     * @param httpRequest the HTTP request
+     * @param token the authentication token of the user making the request
+     * @param date the date of the bookings in milliseconds since epoch
      * @return a list of bookings for the specified date as {@link BookingWithOwnerResourceDTO}
      */
+    @Override
     @GetMapping("/date/{date}")
-    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByDate(@PathVariable Long date, HttpServletRequest httpRequest) {
-        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByDate(date, httpRequest);
+    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByDate(@RequestHeader("Authorization") String token,
+                                                                               @PathVariable Long date) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByDate(token, date);
         return ResponseEntity.ok(bookings);
     }
 
     /**
      * Retrieves bookings for a specific user ID.
      *
+     * @param token the authentication token of the admin user making the request
      * @param userId the ID of the user
-     * @param httpRequest the HTTP request
      * @return a list of bookings for the specified user as {@link BookingWithOwnerResourceDTO}
      */
-    @GetMapping("/user-id/{userId}")
-    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByUserId(@PathVariable Long userId, HttpServletRequest httpRequest) {
-        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByUserId(userId, httpRequest);
+    @Override
+    @GetMapping("/admin/{userId}")
+    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByUserId(@RequestHeader("Authorization") String token,
+                                                                                 @PathVariable Long userId) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByUserId(userId);
         return ResponseEntity.ok(bookings);
     }
 
     /**
      * Retrieves bookings for a specific resource ID.
      *
+     * @param token the authentication token of the user making the request
      * @param resourceId the ID of the resource
-     * @param httpRequest the HTTP request
      * @return a list of bookings for the specified resource as {@link BookingWithOwnerResourceDTO}
      */
-    @GetMapping("/resource-id/{resourceId}")
-    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByResourceId(@PathVariable Long resourceId, HttpServletRequest httpRequest) {
-        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByResourceId(resourceId, httpRequest);
+    @Override
+    @GetMapping("/resource/{resourceId}")
+    public ResponseEntity<List<BookingWithOwnerResourceDTO>> getBookingsByResourceId(@RequestHeader("Authorization") String token,
+                                                                                     @PathVariable Long resourceId) {
+        List<BookingWithOwnerResourceDTO> bookings = bookingService.getBookingsByResourceId(token, resourceId);
         return ResponseEntity.ok(bookings);
     }
 
     /**
      * Retrieves available slots for a specific resource and date.
      *
+     * @param token the authentication token of the user making the request
      * @param request the available slots request details
-     * @param httpRequest the HTTP request
      * @return a list of available slots as {@link AvailableSlotDTO}
      */
+    @Override
     @GetMapping("/available-slots")
-    public ResponseEntity<List<AvailableSlotDTO>> getAvailableSlots(@RequestBody AvailableSlotsRequestDTO request, HttpServletRequest httpRequest) {
-        List<AvailableSlotDTO> availableSlots = bookingService.getAvailableSlots(request, httpRequest);
+    public ResponseEntity<List<AvailableSlotDTO>> getAvailableSlots(@RequestHeader("Authorization") String token,
+                                                                    @RequestBody AvailableSlotsRequestDTO request) {
+        List<AvailableSlotDTO> availableSlots = bookingService.getAvailableSlots(token, request);
         return ResponseEntity.ok(availableSlots);
     }
 
     /**
      * Updates an existing booking.
      *
+     * @param token the authentication token of the user making the request
      * @param bookingId the ID of the booking to be updated
      * @param request the update request details
-     * @param httpRequest the HTTP request
      * @return the updated booking as a {@link BookingDTO}
      */
+    @Override
     @PutMapping("/{bookingId}")
-    public ResponseEntity<BookingDTO> updateBooking(@PathVariable Long bookingId, @RequestBody UpdateBookingRequestDTO request, HttpServletRequest httpRequest) {
-        BookingDTO updatedBooking = bookingService.updateBooking(bookingId, request, httpRequest);
+    public ResponseEntity<BookingDTO> updateBooking(@RequestHeader("Authorization") String token,
+                                                    @PathVariable Long bookingId,
+                                                    @RequestBody UpdateBookingRequestDTO request) {
+        BookingDTO updatedBooking = bookingService.updateBooking(token, bookingId, request);
         return ResponseEntity.ok(updatedBooking);
     }
 
     /**
      * Deletes a booking by its ID.
      *
+     * @param token the authentication token of the user making the request
      * @param bookingId the ID of the booking to be deleted
-     * @param httpRequest the HTTP request
      * @return a response with HTTP status NO_CONTENT
      */
+    @Override
     @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> deleteBooking(@PathVariable Long bookingId, HttpServletRequest httpRequest) {
-        bookingService.deleteBooking(bookingId, httpRequest);
+    public ResponseEntity<Void> deleteBooking(@RequestHeader("Authorization") String token,
+                                              @PathVariable Long bookingId) {
+        bookingService.deleteBooking(token, bookingId);
         return ResponseEntity.noContent().build();
     }
 }
