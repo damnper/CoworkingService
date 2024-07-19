@@ -1,18 +1,50 @@
 plugins {
     id 'java'
-    id 'jacoco'
+    id "io.freefair.aspectj.post-compile-weaving" version "8.6"
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'war'
 }
 
 group = 'ru.y_lab'
 version = '1.0-SNAPSHOT'
 
+java {
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+    withSourcesJar()
+
+    tasks.withType(JavaCompile).tap {
+        configureEach {
+            options.annotationProcessorPath = configurations.annotationProcessor
+        }
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+}
+
 dependencies {
+    // Spring Boot dependencies
+    implementation 'org.springframework:spring-core:5.3.37'
+    implementation 'org.springframework:spring-context:5.3.37'
+    implementation 'org.springframework:spring-webmvc:5.3.37'
+    implementation 'org.springframework:spring-web:5.3.37'
+    implementation 'org.springframework:spring-aop:5.3.37'
+
+    // PostgreSQL Driver
     runtimeOnly 'org.postgresql:postgresql:42.7.3'
-    implementation 'org.liquibase:liquibase-core:4.17.2'
+
+    // Liquibase
+    implementation 'org.liquibase:liquibase-core:4.28.0'
 
     implementation 'org.aspectj:aspectjrt:1.9.8'
     implementation 'org.aspectj:aspectjweaver:1.9.8'
@@ -21,7 +53,12 @@ dependencies {
 
     // Jackson for JSON processing
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
-    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+
+    implementation 'jakarta.annotation:jakarta.annotation-api:3.0.0'
+
+    implementation 'org.apache.logging.log4j:log4j-core:2.23.1'
+    implementation 'org.apache.logging.log4j:log4j-api:2.23.1'
+    implementation 'org.apache.logging.log4j:log4j-web:2.23.1'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok:1.18.32'
@@ -30,43 +67,58 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 
     // MapStruct
-//    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
-//    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
+    // Servlet API
+//    implementation 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+//    testImplementation 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+    implementation 'javax.servlet:javax.servlet-api:4.0.1'
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
+
+
+//    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+    implementation 'org.springdoc:springdoc-openapi-ui:1.6.15'
+
+    // JUnit for testing
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
+    // Mockito for mocking in tests
     testImplementation 'org.mockito:mockito-core:5.12.0'
 
+    // Testcontainers for integration tests
     testImplementation 'org.testcontainers:testcontainers:1.19.8'
     testImplementation 'org.testcontainers:junit-jupiter:1.19.8'
     testImplementation 'org.testcontainers:postgresql:1.19.8'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ["-source", "17", "-target", "17"]
+    options.compilerArgs << '-parameters'
+}
+
+//war {
+//    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+//
+//    from {
+//        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+//    }
+//    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+//}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+
 test {
     useJUnitPlatform()
-}
-
-jacoco {
-    toolVersion = "0.8.11"
-    reportsDirectory = layout.buildDirectory.dir('customJacocoReportDir')
-}
-
-test {
-    finalizedBy jacocoTestReport
-}
-jacocoTestReport {
-    dependsOn test
-}
-
-
-
-jacocoTestReport {
-    reports {
-        xml.required = false
-        csv.required = false
-        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
-    }
 }
 
 

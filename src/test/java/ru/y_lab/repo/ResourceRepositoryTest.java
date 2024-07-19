@@ -6,6 +6,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.y_lab.config.DatabaseConfig;
 import ru.y_lab.config.DatabaseManager;
+import ru.y_lab.enums.ResourceType;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.model.Resource;
 
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ResourceRepositoryTest {
 
     private ResourceRepository resourceRepository;
+    private static final DatabaseManager databaseManager = new DatabaseManager();
 
     @Container
     private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:13.3")
@@ -40,9 +42,9 @@ public class ResourceRepositoryTest {
         dbConfig.setUrl(postgresContainer.getJdbcUrl());
         dbConfig.setUsername(postgresContainer.getUsername());
         dbConfig.setPassword(postgresContainer.getPassword());
-        DatabaseManager.setConfig(dbConfig);
+        databaseManager.setConfig(dbConfig);
 
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CREATE SCHEMA IF NOT EXISTS coworking_service");
 
@@ -61,7 +63,7 @@ public class ResourceRepositoryTest {
 
     @AfterAll
     public static void tearDownAfterAll() {
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("DROP SCHEMA IF EXISTS coworking_service CASCADE");
             }
@@ -72,12 +74,12 @@ public class ResourceRepositoryTest {
 
     @BeforeEach
     public void setUp() {
-        resourceRepository = new ResourceRepository();
+        resourceRepository = new ResourceRepository(databaseManager);
     }
 
     @AfterEach
     public void tearDown() {
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("TRUNCATE TABLE coworking_service.resources RESTART IDENTITY CASCADE");
             }
@@ -91,8 +93,8 @@ public class ResourceRepositoryTest {
      */
     @Test
     @DisplayName("Test Adding a New Resource")
-    public void testAddResource() throws ResourceNotFoundException {
-        Resource resource = new Resource(null, 1L, "Black room", "Workspace");
+    public void testAddResource()  {
+        Resource resource = new Resource(null, 1L, "Black room", ResourceType.CONFERENCE_ROOM.name());
         resourceRepository.addResource(resource);
 
         Resource retrievedResource = resourceRepository.getResourceById(resource.getId()).orElse(null);
@@ -167,9 +169,10 @@ public class ResourceRepositoryTest {
         resourceRepository.addResource(resource1);
         resourceRepository.addResource(resource2);
 
-        List<Resource> allResources = resourceRepository.getAllResources();
-        assertEquals(2, allResources.size());
-        assertTrue(allResources.contains(resource1));
-        assertTrue(allResources.contains(resource2));
+        Optional<List<Resource>> allResources = resourceRepository.getAllResources();
+        assertTrue(allResources.isPresent());
+        assertEquals(2, allResources.get().size());
+        assertTrue(allResources.get().contains(resource1));
+        assertTrue(allResources.get().contains(resource2));
     }
 }

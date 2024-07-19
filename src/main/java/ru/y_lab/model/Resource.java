@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Represents a resource with details such as ID, user ID, name, and type.
+ * Represents a resource with details such as ID, user ID, resourceName, and type.
  */
 @Data
 @AllArgsConstructor

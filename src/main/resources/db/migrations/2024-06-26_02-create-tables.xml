@@ -7,7 +7,7 @@
 
     <changeSet id="02-create-tables" author="Daler Yunusov">
         <!-- Create sequences for the tables -->
-        <createSequence sequenceName="users_id_seq"/>
+        <createSequence sequenceName="users_id_seq" startValue="2"/>
         <createSequence sequenceName="resources_id_seq"/>
         <createSequence sequenceName="bookings_id_seq"/>
 
@@ -27,11 +27,10 @@
             </column>
         </createTable>
 
-        <!-- Add auto-increment to the id column in the users table -->
-        <addAutoIncrement columnName="id"
-                          tableName="users"
-                          startWith="2"
-                          incrementBy="1"/>
+        <!-- Set default value for id column in the users table using the sequence -->
+        <addDefaultValue columnName="id"
+                         tableName="users"
+                         defaultValueSequenceNext="users_id_seq"/>
 
         <!-- Create resources table to store resource information -->
         <createTable tableName="resources">
@@ -50,10 +49,9 @@
         </createTable>
 
         <!-- Add auto-increment to the id column in the resources table -->
-        <addAutoIncrement columnName="id"
-                          tableName="resources"
-                          startWith="1"
-                          incrementBy="1"/>
+        <addDefaultValue columnName="id"
+                         tableName="resources"
+                         defaultValueSequenceNext="resources_id_seq"/>
 
         <!-- Create bookings table to store booking information -->
         <createTable tableName="bookings">
@@ -75,10 +73,9 @@
         </createTable>
 
         <!-- Add auto-increment to the id column in the bookings table -->
-        <addAutoIncrement columnName="id"
-                          tableName="bookings"
-                          startWith="1"
-                          incrementBy="1"/>
+        <addDefaultValue columnName="id"
+                         tableName="bookings"
+                         defaultValueSequenceNext="bookings_id_seq"/>
     </changeSet>
 
 </databaseChangeLog>

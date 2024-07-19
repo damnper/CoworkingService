@@ -1,5 +1,6 @@
 package ru.y_lab.util;
 
+import org.springframework.stereotype.Component;
 import ru.y_lab.dto.*;
 
 import java.time.Instant;
@@ -10,17 +11,16 @@ import java.util.regex.Pattern;
 /**
  * Utility class for handling data validation.
  */
+@Component
 public class ValidationUtil {
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,15}$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^[a-zA-Z0-9@#%]{6,20}$");
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я]{1,50}$");
-    private static final Pattern TYPE_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я]{1,20}$");
+    private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я0-9 ]{1,50}$");
 
     private static final String INVALID_USERNAME_MESSAGE = "Invalid username. Username must be 3 to 15 characters long and can only contain letters, numbers, and underscores.";
     private static final String INVALID_PASSWORD_MESSAGE = "Invalid password. Password must be 6 to 20 characters long and can only contain letters, numbers, and the special characters @, #, and %.";
-    private static final String INVALID_NAME_MESSAGE = "Invalid name. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).";
-    private static final String INVALID_TYPE_MESSAGE = "Invalid type. Type must be 1 to 20 characters long and can only contain letters (Latin and Cyrillic).";
+    private static final String INVALID_NAME_MESSAGE = "Invalid resourceName. Name must be 1 to 50 characters long and can only contain letters (Latin and Cyrillic).";
     private static final String INVALID_TIME_MESSAGE = "Invalid time. Start time and end time must be in the future.";
     private static final String INVALID_RESOURCE_ID_MESSAGE = "Resource ID must be provided and must be a Long.";
     private static final String INVALID_START_TIME_MESSAGE = "Start time must be provided and must be a Long.";
@@ -67,7 +67,7 @@ public class ValidationUtil {
      */
     public static void validateLoginRequest(LoginRequestDTO request) {
         if (request.username() == null || request.username().isEmpty() || !validateUsername(request.username())) {
-            throw new IllegalArgumentException(INVALID_USERNAME_MESSAGE);
+                throw new IllegalArgumentException(INVALID_USERNAME_MESSAGE);
         }
         if (request.password() == null || request.password().isEmpty() || !validatePassword(request.password())) {
             throw new IllegalArgumentException(INVALID_PASSWORD_MESSAGE);
@@ -89,7 +89,7 @@ public class ValidationUtil {
     }
 
     /**
-     * Validates the AddResourceRequestDTO for name and type.
+     * Validates the AddResourceRequestDTO for resourceName.
      *
      * @param request the AddResourceRequestDTO to validate
      */
@@ -97,13 +97,10 @@ public class ValidationUtil {
         if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
         }
-        if (request.type() == null || request.type().isEmpty() || !validateType(request.type())) {
-            throw new IllegalArgumentException(INVALID_TYPE_MESSAGE);
-        }
     }
 
     /**
-     * Validates the UpdateResourceRequestDTO for name and type.
+     * Validates the UpdateResourceRequestDTO for resourceName and type.
      *
      * @param request the UpdateResourceRequestDTO to validate
      */
@@ -111,27 +108,15 @@ public class ValidationUtil {
         if (request.name() == null || request.name().isEmpty() || !validateName(request.name())) {
             throw new IllegalArgumentException(INVALID_NAME_MESSAGE);
         }
-        if (request.type() == null || request.type().isEmpty() || !validateType(request.type())) {
-            throw new IllegalArgumentException(INVALID_TYPE_MESSAGE);
-        }
     }
 
     /**
-     * Validates the name based on predefined rules.
-     * @param name the name to be validated
-     * @return true if the name is valid, false otherwise
+     * Validates the resourceName based on predefined rules.
+     * @param name the resourceName to be validated
+     * @return true if the resourceName is valid, false otherwise
      */
     public static boolean validateName(String name) {
         return NAME_PATTERN.matcher(name).matches();
-    }
-
-    /**
-     * Validates the type based on predefined rules.
-     * @param type the type to be validated
-     * @return true if the type is valid, false otherwise
-     */
-    public static boolean validateType(String type) {
-        return TYPE_PATTERN.matcher(type).matches();
     }
 
     /**
@@ -143,17 +128,8 @@ public class ValidationUtil {
         if (request.resourceId() == null) {
             throw new IllegalArgumentException(INVALID_RESOURCE_ID_MESSAGE);
         }
-        if (request.startTime() == null) {
-            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
-        }
-        if (request.endTime() == null) {
-            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
-        }
-        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.startTime()), ZoneOffset.UTC);
-        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.endTime()), ZoneOffset.UTC);
-        validateDateTime(startDateTime, endDateTime);
+        validateTime(request.startTime(), request.endTime());
     }
-
 
     /**
      * Validates the UpdateBookingRequestDTO for resourceId, startTime, and endTime.
@@ -161,15 +137,7 @@ public class ValidationUtil {
      * @param request the UpdateBookingRequestDTO to validate
      */
     public static void validateUpdateBookingRequest(UpdateBookingRequestDTO request) {
-        if (request.startTime() == null) {
-            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
-        }
-        if (request.endTime() == null) {
-            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
-        }
-        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.startTime()), ZoneOffset.UTC);
-        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(request.endTime()), ZoneOffset.UTC);
-        validateDateTime(startDateTime, endDateTime);
+        validateTime(request.startTime(), request.endTime());
     }
 
     /**
@@ -188,5 +156,17 @@ public class ValidationUtil {
         if (startDateTime.isBefore(LocalDateTime.now()) | endDateTime.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException(INVALID_TIME_IN_PAST_MESSAGE);
         }
+    }
+
+    private static void validateTime(Long startTime, Long endTime) {
+        if (startTime == null) {
+            throw new IllegalArgumentException(INVALID_START_TIME_MESSAGE);
+        }
+        if (endTime == null) {
+            throw new IllegalArgumentException(INVALID_END_TIME_MESSAGE);
+        }
+        LocalDateTime startDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTime), ZoneOffset.UTC);
+        LocalDateTime endDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTime), ZoneOffset.UTC);
+        validateDateTime(startDateTime, endDateTime);
     }
 }

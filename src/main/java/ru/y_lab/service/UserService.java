@@ -1,10 +1,12 @@
 package ru.y_lab.service;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.dto.LoginRequestDTO;
+import ru.y_lab.dto.RegisterRequestDTO;
+import ru.y_lab.dto.UpdateUserRequestDTO;
+import ru.y_lab.dto.UserDTO;
 
-import java.io.IOException;
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * The UserService interface defines methods for managing users.
@@ -12,50 +14,53 @@ import java.io.IOException;
 public interface UserService {
 
     /**
-     * Registers a new user.
+     * Registers a new user in the system.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param request the registration request containing user details
+     * @return the registered user as a UserDTO
      */
-    void registerUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    UserDTO registerUser(RegisterRequestDTO request);
 
     /**
-     * Logs in a user.
+     * Authenticates a user and logs them in. Stores user information in the session.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param request the login request containing username and password
+     * @param httpRequest the HTTP request to get the session
+     * @return the authenticated user as a UserDTO
      */
-    void loginUser(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    UserDTO loginUser(LoginRequestDTO request, HttpServletRequest httpRequest);
 
     /**
      * Retrieves a user by their ID.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param userId the ID of the user
+     * @param httpRequest the HTTP request to get the session
+     * @return the user as a UserDTO
      */
-    void getUserById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    UserDTO getUserById(Long userId, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves all users.
+     * Retrieves all users in the system. Only accessible by admin users.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of all users as UserDTOs
      */
-    void getAllUsers(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<UserDTO> getAllUsers(HttpServletRequest httpRequest);
 
     /**
-     * Updates the information of an existing user.
+     * Updates an existing user. Only accessible by the user themselves or an admin.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param userId the ID of the user to be updated
+     * @param request the update request containing updated user details
+     * @param httpRequest the HTTP request to get the session
+     * @return the updated user as a UserDTO
      */
-    void updateUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
+    UserDTO updateUser(Long userId, UpdateUserRequestDTO request, HttpServletRequest httpRequest);
 
     /**
-     * Deletes a user by their unique identifier.
+     * Deletes a user by their ID.
      *
-     * @param req  the HttpServletRequest object
-     * @param resp the HttpServletResponse object
+     * @param userId the ID of the user to be deleted
      */
-    void deleteUser(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
+    void deleteUser(Long userId, HttpServletRequest httpRequest);
 }

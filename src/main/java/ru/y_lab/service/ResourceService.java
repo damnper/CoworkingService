@@ -1,62 +1,58 @@
 package ru.y_lab.service;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import ru.y_lab.exception.ResourceNotFoundException;
-import ru.y_lab.exception.UserNotFoundException;
+import ru.y_lab.dto.*;
+import ru.y_lab.enums.ResourceType;
 
-import java.io.IOException;
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * The ResourceService interface defines methods for managing resources.
  */
 public interface ResourceService {
+    /**
+     * Adds a new resource to the system.
+     *
+     * @param request the request containing resource details
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return the added resource as a ResourceDTO
+     */
+    ResourceDTO addResource(AddResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest);
 
     /**
-     * Adds a new resource.
+     * Retrieves a resource by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return the resource with owner details as a ResourceWithOwnerDTO
      */
-    void addResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    ResourceWithOwnerDTO getResourceById(Long resourceId, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves a resource by its unique identifier.
+     * Retrieves all resources in the system.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws ResourceNotFoundException if the resource with the given ID is not found
-     * @throws IOException if an I/O error occurs
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return a list of all resources with their owner details
      */
-    void getResourceById(HttpServletRequest req, HttpServletResponse resp) throws ResourceNotFoundException, IOException;
-
-    /**
-     * Retrieves a list of all resources.
-     *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws UserNotFoundException if the user is not found
-     * @throws IOException if an I/O error occurs
-     */
-    void getAllResources(HttpServletRequest req, HttpServletResponse resp) throws UserNotFoundException, IOException;
+    List<ResourceWithOwnerDTO> getAllResources(HttpServletRequest httpRequest);
 
     /**
      * Updates an existing resource.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource to be updated
+     * @param request the update request containing updated resource details
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @return the updated resource as a ResourceDTO
+     * @throws SecurityException if the user is not authorized to update the resource
      */
-    void updateResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
-
+    ResourceDTO updateResource(Long resourceId, UpdateResourceRequestDTO request, ResourceType resourceType, HttpServletRequest httpRequest);
 
     /**
-     * Deletes a resource.
+     * Deletes a resource by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource to be deleted
+     * @param httpRequest the HTTP request to get the session for authentication
+     * @throws SecurityException if the user is not authorized to delete the resource
      */
-    void deleteResource(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    void deleteResource(Long resourceId, HttpServletRequest httpRequest);
 }

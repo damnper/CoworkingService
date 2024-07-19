@@ -1,9 +1,9 @@
 package ru.y_lab.service;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import ru.y_lab.dto.*;
 
-import java.io.IOException;
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * The BookingService interface defines methods for managing bookings.
@@ -11,95 +11,91 @@ import java.io.IOException;
 public interface BookingService {
 
     /**
-     * Adds a new booking based on user input.
-     * Prompts the user to enter the resource ID and booking times.
+     * Adds a new booking to the system.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param requestDTO the request containing booking details
+     * @param httpRequest the HTTP request to get the session
+     * @return the added booking as a BookingDTO
      */
-    void addBooking(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    BookingDTO addBooking(AddBookingRequestDTO requestDTO, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves a booking by its unique identifier.
+     * Retrieves a booking by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param bookingId the ID of the booking
+     * @param httpRequest the HTTP request to get the session
+     * @return the booking with owner and resource details as a BookingWithOwnerResourceDTO
      */
-    void getBookingById(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    BookingWithOwnerResourceDTO getBookingById(Long bookingId, HttpServletRequest httpRequest);
 
     /**
-     * Displays all bookings made by the current user.
+     * Retrieves all bookings made by a specific user.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param userId the ID of the user
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of bookings with owner and resource details for the specified user
      */
-    void getUserBookings(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<BookingWithOwnerResourceDTO> getUserBookings(Long userId, HttpServletRequest httpRequest);
 
     /**
      * Retrieves all bookings in the system. Only accessible by admin users.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of all bookings with owner and resource details
      */
-    void getAllBookings(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<BookingWithOwnerResourceDTO> getAllBookings(HttpServletRequest httpRequest);
 
     /**
-     * Displays available booking slots for a specified date and resource.
-     * Prompts the user to enter a resource ID and date, then shows available slots.
+     * Retrieves bookings by a specific date.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param date the date of the bookings
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of bookings with owner and resource details for the specified date
      */
-    void getAvailableSlots(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<BookingWithOwnerResourceDTO> getBookingsByDate(Long date, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves bookings by a specific date. Only accessible by admin users.
+     * Retrieves bookings made by a specific user ID. Only accessible by admin users.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param userId the ID of the user
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of bookings with owner and resource details for the specified user
      */
-    void getBookingsByDate(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<BookingWithOwnerResourceDTO> getBookingsByUserId(Long userId, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves bookings by a specific user ID. Only accessible by admin users.
+     * Retrieves bookings for a specific resource ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param resourceId the ID of the resource
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of bookings with owner and resource details for the specified resource
      */
-    void getBookingsByUserId(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<BookingWithOwnerResourceDTO> getBookingsByResourceId(Long resourceId, HttpServletRequest httpRequest);
 
     /**
-     * Retrieves bookings by a specific resource ID. Only accessible by admin users.
+     * Retrieves available slots for a specific resource and date.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param request the request containing resource ID and date
+     * @param httpRequest the HTTP request to get the session
+     * @return a list of available slots for the specified resource and date
      */
-    void getBookingsByResourceId(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    List<AvailableSlotDTO> getAvailableSlots(AvailableSlotsRequestDTO request, HttpServletRequest httpRequest);
 
     /**
-     * Updates an existing booking based on user input.
-     * Allows the user to change the booking start and end times.
+     * Updates an existing booking.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
-     * @throws IOException if an I/O error occurs
+     * @param bookingId the ID of the booking to be updated
+     * @param request the update request containing updated booking details
+     * @param httpRequest the HTTP request to get the session
+     * @return the updated booking as a BookingDTO
      */
-    void updateBooking(HttpServletRequest req, HttpServletResponse resp) throws IOException;
+    BookingDTO updateBooking(Long bookingId, UpdateBookingRequestDTO request, HttpServletRequest httpRequest);
 
     /**
-     * Cancels an existing booking based on user input.
-     * Prompts the user for confirmation before proceeding with cancellation.
+     * Deletes a booking by its ID.
      *
-     * @param req  the HttpServletRequest object containing the request details
-     * @param resp the HttpServletResponse object for sending the response
+     * @param bookingId the ID of the booking to be deleted
+     * @param httpRequest the HTTP request to get the session
      */
-    void deleteBooking(HttpServletRequest req, HttpServletResponse resp);
+    void deleteBooking(Long bookingId, HttpServletRequest httpRequest);
 }

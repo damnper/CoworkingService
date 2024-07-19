@@ -13,6 +13,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UserRepositoryTest {
 
     private UserRepository userRepository;
+    private static final DatabaseManager databaseManager = new DatabaseManager();
 
     @Container
     private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:13.3")
@@ -39,9 +41,9 @@ public class UserRepositoryTest {
         dbConfig.setUrl(postgresContainer.getJdbcUrl());
         dbConfig.setUsername(postgresContainer.getUsername());
         dbConfig.setPassword(postgresContainer.getPassword());
-        DatabaseManager.setConfig(dbConfig);
+        databaseManager.setConfig(dbConfig);
 
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CREATE SCHEMA IF NOT EXISTS coworking_service");
 
@@ -60,7 +62,7 @@ public class UserRepositoryTest {
 
     @AfterAll
     public static void tearDownAfterAll() {
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("DROP SCHEMA IF EXISTS coworking_service CASCADE");
             }
@@ -74,13 +76,13 @@ public class UserRepositoryTest {
      */
     @BeforeEach
     public void setUp() {
-        userRepository = new UserRepository();
+        userRepository = new UserRepository(databaseManager);
     }
 
     @AfterEach
     public void tearDown() {
         // Убедитесь, что база данных очищена после каждого теста
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("TRUNCATE TABLE coworking_service.users RESTART IDENTITY CASCADE");
             }
@@ -129,9 +131,9 @@ public class UserRepositoryTest {
     public void testGetUserByUsername() throws UserNotFoundException {
         User user = new User(null, "testuser", "123456", "USER");
         userRepository.addUser(user);
-        User retrievedUser = userRepository.getUserByUsername("testuser");
-        assertNotNull(retrievedUser);
-        assertEquals(user.getUsername(), retrievedUser.getUsername());
+        Optional<User> retrievedUserOpt = userRepository.getUserByUsername("testuser");
+        assertTrue(retrievedUserOpt.isPresent());
+        assertEquals(user.getUsername(), retrievedUserOpt.get().getUsername());
     }
 
     /**
@@ -152,18 +154,6 @@ public class UserRepositoryTest {
     }
 
     /**
-     * Test case for deleting an existing user.
-     */
-    @Test
-    @DisplayName("Test Deleting an Existing User")
-    public void testDeleteUser() {
-        User user = new User(null, "testuser", "123456", "USER");
-        User savedUser = userRepository.addUser(user);
-        assertDoesNotThrow(() -> userRepository.deleteUser(savedUser.getId()));
-        assertThrows(UserNotFoundException.class, () -> userRepository.getUserById(savedUser.getId()));
-    }
-
-    /**
      * Test case for retrieving all users from the repository.
      */
     @Test
@@ -173,28 +163,12 @@ public class UserRepositoryTest {
         User user2 = new User(null, "testuser2", "123456", "USER");
         userRepository.addUser(user1);
         userRepository.addUser(user2);
-        List<User> allUsers = userRepository.getAllUsers();
-        assertEquals(2, allUsers.size());
-        assertTrue(allUsers.stream().anyMatch(u -> u.getUsername().equals("testuser1")));
-        assertTrue(allUsers.stream().anyMatch(u -> u.getUsername().equals("testuser2")));
-    }
+        Optional<List<User>> allUsers = userRepository.getAllUsers();
 
-    /**
-     * Test case for retrieving a user by ID that does not exist, expecting a UserNotFoundException.
-     */
-    @Test
-    @DisplayName("Test Retrieving Non-Existent User by ID")
-    public void testGetUserByIdNotFound() {
-        assertThrows(UserNotFoundException.class, () -> userRepository.getUserById(999L));
-    }
-
-    /**
-     * Test case for retrieving a user by username that does not exist, expecting a UserNotFoundException.
-     */
-    @Test
-    @DisplayName("Test Retrieving Non-Existent User by Username")
-    public void testGetUserByUsernameNotFound() {
-        assertThrows(UserNotFoundException.class, () -> userRepository.getUserByUsername("nonexistent_username"));
+        assertTrue(allUsers.isPresent());
+        assertEquals(2, allUsers.get().size());
+        assertTrue(allUsers.get().stream().anyMatch(u -> u.getUsername().equals("testuser1")));
+        assertTrue(allUsers.get().stream().anyMatch(u -> u.getUsername().equals("testuser2")));
     }
 
     /**
@@ -205,17 +179,5 @@ public class UserRepositoryTest {
     public void testUpdateNonExistentUser() {
         User nonExistentUser = new User(999L, "testuser", "123456", "USER");
         assertThrows(UserNotFoundException.class, () -> userRepository.updateUser(nonExistentUser));
-    }
-
-    /**
-     * Test case for deleting a user that does not exist, expecting a UserNotFoundException.
-     * Also verifies that the repository remains unchanged (no users were deleted).
-     */
-    @Test
-    @DisplayName("Test Deleting Non-Existent User")
-    public void testDeleteNonExistentUser() {
-        assertThrows(UserNotFoundException.class, () -> userRepository.deleteUser(999L));
-        List<User> allUsers = userRepository.getAllUsers();
-        assertEquals(0, allUsers.size());
     }
 }

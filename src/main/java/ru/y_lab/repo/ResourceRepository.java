@@ -1,6 +1,9 @@
 package ru.y_lab.repo;
 
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Repository;
 import ru.y_lab.config.DatabaseManager;
+import ru.y_lab.exception.DatabaseException;
 import ru.y_lab.exception.ResourceNotFoundException;
 import ru.y_lab.model.Resource;
 
@@ -11,18 +14,29 @@ import java.util.Optional;
 
 /**
  * The ResourceRepository class provides methods to manage resources.
- * It stores resource data in a HashMap and supports CRUD operations.
+ * It interacts with the database to perform CRUD operations for resources.
  */
+@Repository
+@AllArgsConstructor
 public class ResourceRepository {
+
+    private DatabaseManager databaseManager;
+
+    // SQL Queries as constants
+    private static final String ADD_RESOURCE_SQL = "INSERT INTO coworking_service.resources (id, user_id, name, type) VALUES (DEFAULT, ?, ?, ?)";
+    private static final String GET_RESOURCE_BY_ID_SQL = "SELECT * FROM coworking_service.resources WHERE id = ?";
+    private static final String GET_ALL_RESOURCES_SQL = "SELECT * FROM coworking_service.resources";
+    private static final String UPDATE_RESOURCE_SQL = "UPDATE coworking_service.resources SET user_id = ?, name = ?, type = ? WHERE id = ?";
+    private static final String DELETE_RESOURCE_SQL = "DELETE FROM coworking_service.resources WHERE id = ?";
 
     /**
      * Adds a new resource to the repository.
      * @param resource the resource to be added
+     * @return the resource with the specified ID
      */
     public Resource addResource(Resource resource) {
-        String sql = "INSERT INTO coworking_service.resources (id, user_id, name, type) VALUES (DEFAULT, (?), (?), (?))";
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement ps = connection.prepareStatement(ADD_RESOURCE_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setLong(1, resource.getUserId());
             ps.setString(2, resource.getName());
@@ -30,7 +44,7 @@ public class ResourceRepository {
 
             int affectedRows = ps.executeUpdate();
             if (affectedRows == 0) {
-                throw new SQLException("Creating resource failed, no rows affected.");
+                throw new DatabaseException("Resource creation failed. No rows affected.");
             }
 
             try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
@@ -38,11 +52,11 @@ public class ResourceRepository {
                     resource.setId(generatedKeys.getLong(1));
                     return resource;
                 } else {
-                    throw new SQLException("Creating resource failed, no ID obtained.");
+                    throw new DatabaseException("Resource creation failed. No ID obtained.");
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while adding resource", e);
+            throw new DatabaseException("An error occurred while adding the resource. Please try again later." + e.getMessage());
         }
     }
 
@@ -51,10 +65,9 @@ public class ResourceRepository {
      * @param id the ID of the resource
      * @return the resource with the specified ID
      */
-    public Optional<Resource> getResourceById(Long id) throws ResourceNotFoundException {
-        String sql = "SELECT * FROM coworking_service.resources WHERE id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+    public Optional<Resource> getResourceById(Long id) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RESOURCE_BY_ID_SQL)) {
             ps.setLong(1, id);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -66,7 +79,7 @@ public class ResourceRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while retrieving resource by ID", e);
+            throw new DatabaseException("An error occurred while retrieving the resource by ID. Please try again later.");
         }
     }
 
@@ -74,36 +87,39 @@ public class ResourceRepository {
      * Retrieves all resources from the repository.
      * @return a list of all resources
      */
-    public List<Resource> getAllResources() {
+    public Optional<List<Resource>> getAllResources() {
         List<Resource> resources = new ArrayList<>();
-        String sql = "SELECT * FROM coworking_service.resources";
-        try (Connection connection = DatabaseManager.getConnection();
+        try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery(sql)) {
+             ResultSet rs = statement.executeQuery(GET_ALL_RESOURCES_SQL)) {
 
             while (rs.next()) {
                 Resource resource = mapRowToResource(rs);
                 resources.add(resource);
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while retrieving all resources", e);
+            throw new DatabaseException("An error occurred while retrieving all resources. Please try again later.");
         }
-        return resources;
+        return resources.isEmpty() ? Optional.empty() : Optional.of(resources);
     }
 
     /**
      * Updates an existing resource in the repository.
      * @param resource the resource with updated information
-     * @throws ResourceNotFoundException if the resource with the specified ID is not found
+     * @return the updated resource
      */
-    public Resource updateResource(Resource resource) throws ResourceNotFoundException {
-        String updateSql = "UPDATE coworking_service.resources " +
-                "SET user_id = ?, name = ?, type = ? WHERE id = ?";
-        String selectSql = "SELECT * FROM coworking_service.resources WHERE id = ?";
+    public Resource updateResource(Resource resource) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement updatePs = connection.prepareStatement(UPDATE_RESOURCE_SQL);
+             PreparedStatement selectPs = connection.prepareStatement(GET_RESOURCE_BY_ID_SQL)) {
 
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement updatePs = connection.prepareStatement(updateSql);
-             PreparedStatement selectPs = connection.prepareStatement(selectSql)) {
+            // Check if resource exists
+            selectPs.setLong(1, resource.getId());
+            try (ResultSet rs = selectPs.executeQuery()) {
+                if (!rs.next()) {
+                    throw new ResourceNotFoundException("Resource with ID " + resource.getId() + " not found.");
+                }
+            }
 
             updatePs.setLong(1, resource.getUserId());
             updatePs.setString(2, resource.getName());
@@ -112,16 +128,15 @@ public class ResourceRepository {
 
             updatePs.executeUpdate();
 
-            selectPs.setLong(1, resource.getId());
             try (ResultSet rs = selectPs.executeQuery()) {
                 if (rs.next()) {
                     return mapRowToResource(rs);
                 } else {
-                    throw new ResourceNotFoundException("Resource with ID " + resource.getId() + " not found after update");
+                    throw new ResourceNotFoundException("Resource with ID " + resource.getId() + " not found after update.");
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while updating resource", e);
+            throw new DatabaseException("An error occurred while updating the resource. Please try again later.");
         }
     }
 
@@ -130,27 +145,26 @@ public class ResourceRepository {
      * @param id the ID of the resource to be deleted
      * @throws ResourceNotFoundException if the resource with the specified ID is not found
      */
-    public void deleteResource(Long id) throws ResourceNotFoundException {
-        String sql = "DELETE FROM coworking_service.resources WHERE id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+    public void deleteResource(Long id) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement ps = connection.prepareStatement(DELETE_RESOURCE_SQL)) {
 
             ps.setLong(1, id);
 
             int affectedRows = ps.executeUpdate();
             if (affectedRows == 0) {
-                throw new ResourceNotFoundException("Resource with ID " + id + " not found");
+                throw new ResourceNotFoundException("Resource with ID " + id + " not found.");
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error while deleting resource", e);
+            throw new DatabaseException("An error occurred while deleting the resource. Please try again later.");
         }
     }
 
     /**
-     * Maps a row from a ResultSet to a Resource object.
-     * @param rs the ResultSet containing the data to map
-     * @return a Resource object mapped from the ResultSet data
-     * @throws SQLException if there is an error accessing the ResultSet
+     * Maps a row from the ResultSet to a Resource object.
+     * @param rs the ResultSet containing resource data
+     * @return a Resource object mapped from the ResultSet
+     * @throws SQLException if a database access error occurs
      */
     private Resource mapRowToResource(ResultSet rs) throws SQLException {
         return Resource.builder()

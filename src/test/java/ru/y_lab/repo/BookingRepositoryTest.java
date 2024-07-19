@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BookingRepositoryTest {
 
     private BookingRepository bookingRepository;
+    private static final DatabaseManager databaseManager = new DatabaseManager();
 
     @Container
     private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:13.3")
@@ -42,9 +43,9 @@ public class BookingRepositoryTest {
         dbConfig.setUrl(postgresContainer.getJdbcUrl());
         dbConfig.setUsername(postgresContainer.getUsername());
         dbConfig.setPassword(postgresContainer.getPassword());
-        DatabaseManager.setConfig(dbConfig);
+        databaseManager.setConfig(dbConfig);
 
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CREATE SCHEMA IF NOT EXISTS coworking_service");
 
@@ -65,7 +66,7 @@ public class BookingRepositoryTest {
 
     @AfterAll
     public static void tearDownAfterAll() {
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("DROP SCHEMA IF EXISTS coworking_service CASCADE");
             }
@@ -76,12 +77,12 @@ public class BookingRepositoryTest {
 
     @BeforeEach
     public void setUp() {
-        bookingRepository = new BookingRepository();
+        bookingRepository = new BookingRepository(databaseManager);
     }
 
     @AfterEach
     public void tearDown() {
-        try (Connection conn = DatabaseManager.getConnection()) {
+        try (Connection conn = databaseManager.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("TRUNCATE TABLE coworking_service.bookings RESTART IDENTITY CASCADE");
             }
@@ -100,7 +101,7 @@ public class BookingRepositoryTest {
         LocalDateTime endTime = startTime.plusHours(1);
         Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
 
-        bookingRepository.saveBooking(booking);
+        bookingRepository.addBooking(booking);
 
         Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
@@ -111,6 +112,7 @@ public class BookingRepositoryTest {
         assertEquals(booking.getStartTime(), retrievedBooking.getStartTime());
         assertEquals(booking.getEndTime(), retrievedBooking.getEndTime());
     }
+
 
     /**
      * Test case for retrieving a booking by ID.
@@ -125,7 +127,7 @@ public class BookingRepositoryTest {
         LocalDateTime endTime = startTime.plusHours(1);
         Booking booking = new Booking(null, 1L, 1L, startTime, endTime);
 
-        bookingRepository.saveBooking(booking);
+        bookingRepository.addBooking(booking);
 
         Booking retrievedBooking = bookingRepository.getBookingById(booking.getId()).orElse(null);
         assertNotNull(retrievedBooking);
@@ -157,7 +159,7 @@ public class BookingRepositoryTest {
 
         Booking booking = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking = bookingRepository.saveBooking(booking);
+        Booking savedBooking = bookingRepository.addBooking(booking);
 
         LocalDateTime newStartTime = LocalDateTime.of(2024, 6, 30, 12, 0, 0, 0);
         LocalDateTime newEndTime = newStartTime.plusHours(2);
@@ -196,7 +198,7 @@ public class BookingRepositoryTest {
     @DisplayName("Test for deleting an existing booking")
     public void testDeleteBooking() {
         Booking booking = new Booking(null, 1L, 1L, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        bookingRepository.saveBooking(booking);
+        bookingRepository.addBooking(booking);
 
         bookingRepository.deleteBooking(booking.getId());
 
@@ -225,8 +227,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 2L, 2L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
-        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
 
         Optional<List<Booking>> allBookingsOpt = bookingRepository.getAllBookings();
 
@@ -265,8 +267,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 1L, 2L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
-        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
 
         Optional<List<Booking>> bookingsByUserIdOpt = bookingRepository.getBookingsByUserId(1L);
 
@@ -307,8 +309,8 @@ public class BookingRepositoryTest {
         Booking booking1 = new Booking(null, 1L, 1L, fixedStartTime, fixedEndTime);
         Booking booking2 = new Booking(null, 2L, 1L, fixedStartTime, fixedEndTime);
 
-        Booking savedBooking1 = bookingRepository.saveBooking(booking1);
-        Booking savedBooking2 = bookingRepository.saveBooking(booking2);
+        Booking savedBooking1 = bookingRepository.addBooking(booking1);
+        Booking savedBooking2 = bookingRepository.addBooking(booking2);
 
         Optional<List<Booking>> bookingsByResourceIdOpt = bookingRepository.getBookingsByResourceId(1L);
 
